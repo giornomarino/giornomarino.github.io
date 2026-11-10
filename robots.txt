@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://giornomarino.github.io/sitemap.xml

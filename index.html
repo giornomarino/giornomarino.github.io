@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-CN" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giorno Marino · 项目</title>
+<meta name="description" content="Giorno Marino 的个人主页：Swap Your Icon、Clash for Young、Clash for Research、分流检查、Pixel Pet 等 Mac / Windows 小工具。">
+<link rel="canonical" href="https://giornomarino.github.io/">
+<link rel="icon" type="image/png" href="assets/pixel-pet.png">
+<link rel="apple-touch-icon" href="assets/pixel-pet.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Giorno Marino · 项目">
+<meta property="og:description" content="做给自己也给别人用的 Mac / Windows 小工具。">
+<meta property="og:url" content="https://giornomarino.github.io/">
+<meta property="og:image" content="https://giornomarino.github.io/assets/pixel-pet.png">
+<meta name="twitter:card" content="summary">
+<!-- GOOGLE_SITE_VERIFICATION -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Person","name":"Giorno Marino","alternateName":"Joe","url":"https://giornomarino.github.io/","sameAs":["https://github.com/giornomarino"]}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fffdf8; --ink:#1d1d1f; --muted:#6b6862; --line:#e2ddd2;
+  --accent:#2f5bd3; --accent-ink:#fff; --chip:#ece7dc; --shadow:0 1px 0 var(--line);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#141516; --surface:#1c1d1f; --ink:#ecebe7; --muted:#9a978f; --line:#2c2d30;
+    --accent:#7d9cff; --accent-ink:#0d1020; --chip:#26272a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141516; --surface:#1c1d1f; --ink:#ecebe7; --muted:#9a978f; --line:#2c2d30;
+  --accent:#7d9cff; --accent-ink:#0d1020; --chip:#26272a;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+}
+a{color:inherit}
+.wrap{max-width:860px;margin:0 auto;padding:0 20px}
+.pixel{font-family:"Silkscreen",ui-monospace,monospace;letter-spacing:.02em}
+
+header.top{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+.brand{font-size:15px;text-decoration:none}
+.tools{display:flex;gap:6px}
+.tools button{
+  font:inherit;font-size:13px;color:var(--muted);background:transparent;
+  border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer;
+}
+.tools button:hover{color:var(--ink);border-color:var(--muted)}
+
+.hero{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;padding:48px 0 56px}
+.avatar{
+  width:120px;height:120px;image-rendering:pixelated;
+  background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:10px;
+}
+.hero h1{margin:0;font-size:clamp(30px,6vw,44px);line-height:1.1;letter-spacing:-.01em}
+.hero p{margin:12px 0 0;color:var(--muted);max-width:520px}
+.links{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:14px;
+  padding:7px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);
+}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn svg{width:16px;height:16px}
+
+h2.sec{font-size:13px;color:var(--muted);margin:0 0 14px;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.card{
+  display:flex;flex-direction:column;gap:12px;background:var(--surface);
+  border:1px solid var(--line);border-radius:16px;padding:20px;
+}
+.card.wide{grid-column:1/-1}
+.card-head{display:flex;gap:14px;align-items:center}
+.card-head img{width:52px;height:52px;border-radius:12px;flex:none}
+.card-head img.px{image-rendering:pixelated}
+.card h3{margin:0;font-size:18px;line-height:1.3}
+.meta{font-size:12.5px;color:var(--muted)}
+.card p{margin:0;font-size:15px}
+.card ul{margin:0;padding-left:18px;font-size:14px;color:var(--muted)}
+.card ul li{margin:2px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;background:var(--chip);border-radius:6px;padding:2px 8px;color:var(--muted)}
+.card-links{display:flex;flex-wrap:wrap;gap:14px;margin-top:auto;padding-top:4px;font-size:14px}
+.card-links a{color:var(--accent);text-decoration:none}
+.card-links a:hover{text-decoration:underline}
+
+footer{padding:56px 0 40px;color:var(--muted);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+[data-lang="en"] .zh, [data-lang="zh"] .en{display:none}
+
+@media (max-width:640px){
+  .hero{grid-template-columns:1fr;gap:18px;padding:28px 0 40px}
+  .avatar{width:96px;height:96px;border-radius:20px}
+  .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand pixel" href="./">giornomarino</a>
+    <div class="tools">
+      <button id="lang" type="button" aria-label="Switch language">EN</button>
+      <button id="theme" type="button" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <img class="avatar" src="assets/pixel-pet.png" alt="像素小狗头像" width="120" height="120">
+    <div>
+      <h1>Giorno Marino</h1>
+      <p class="zh">也叫 Joe。业余写一些 Mac 和 Windows 上的小工具，大多是先给自己用、顺手也分享出来：换应用图标、让代理更好用、在桌面上养一只像素宠物。</p>
+      <p class="en">Also goes by Joe. I make small Mac and Windows tools — mostly for myself first, then shared: swapping app icons, friendlier proxy clients, and a pixel pet for your desktop.</p>
+      <div class="links">
+        <a class="btn primary" href="https://github.com/giornomarino" rel="me">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <h2 class="sec pixel">Projects</h2>
+    <div class="grid">
+
+      <article class="card wide">
+        <div class="card-head">
+          <img src="assets/swap-your-icon.png" alt="" width="52" height="52">
+          <div>
+            <h3>Swap Your Icon</h3>
+            <div class="meta">macOS · Windows · Tauri</div>
+          </div>
+        </div>
+        <p class="zh">给 Mac 和 Windows 上的应用换图标：选应用、拖入图片、点「应用」，三步完成。</p>
+        <p class="en">Change app icons on macOS and Windows: pick an app, drop in an image, click Apply.</p>
+        <ul class="zh">
+          <li>一键还原，改之前自动备份原图标</li>
+          <li>应用更新后图标被冲掉，会在后台自动重新套用</li>
+          <li>按文件夹批量替换，可以保存成主题分享给别人</li>
+        </ul>
+        <ul class="en">
+          <li>One-click restore — originals are backed up before every change</li>
+          <li>Re-applies your icons automatically after apps update</li>
+          <li>Batch apply from a folder, and save sets as shareable themes</li>
+        </ul>
+        <div class="card-links">
+          <a href="https://github.com/giornomarino/swap-your-icon/releases/latest"><span class="zh">下载</span><span class="en">Download</span> →</a>
+          <a href="https://github.com/giornomarino/swap-your-icon"><span class="zh">源代码</span><span class="en">Source</span></a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <img src="assets/clash-for-young.png" alt="" width="52" height="52">
+          <div>
+            <h3>Clash for Young</h3>
+            <div class="meta">macOS · Windows · mihomo</div>
+          </div>
+        </div>
+        <p class="zh">新手也能自己装好、用好的代理客户端：粘贴订阅、点小猫连接，再给每个网站选走哪个地区。</p>
+        <p class="en">A proxy client beginners can set up alone: paste a subscription, tap the cat to connect, choose a region per website.</p>
+        <div class="chips"><span class="chip zh">按网站分流</span><span class="chip en">Per-site routing</span><span class="chip zh">增强模式</span><span class="chip en">TUN mode</span><span class="chip zh">导出手机配置</span><span class="chip en">Mobile export</span></div>
+        <div class="card-links">
+          <a href="https://github.com/giornomarino/clash-for-young/releases/latest"><span class="zh">下载</span><span class="en">Download</span> →</a>
+          <a href="https://github.com/giornomarino/clash-for-young"><span class="zh">源代码</span><span class="en">Source</span></a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <img src="assets/clash-for-young.png" alt="" width="52" height="52">
+          <div>
+            <h3>Clash for Research</h3>
+            <div class="meta">macOS · Windows</div>
+          </div>
+        </div>
+        <p class="zh">Clash for Young 的科研版：查文献、下数据、写论文更顺手。</p>
+        <p class="en">The research edition of Clash for Young, tuned for literature search, data downloads and writing.</p>
+        <div class="chips"><span class="chip zh">学术网站预设</span><span class="chip en">Academic presets</span><span class="chip zh">校园网开关</span><span class="chip en">Campus switch</span><span class="chip zh">终端代理</span><span class="chip en">Terminal proxy</span></div>
+        <div class="card-links">
+          <a href="https://github.com/giornomarino/clash-for-research/releases/latest"><span class="zh">下载</span><span class="en">Download</span> →</a>
+          <a href="https://github.com/giornomarino/clash-for-research"><span class="zh">项目页</span><span class="en">Project</span></a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <img src="assets/proxy-routing.png" alt="" width="52" height="52">
+          <div>
+            <h3><span class="zh">分流检查</span><span class="en">Proxy Routing</span></h3>
+            <div class="meta">macOS · Windows · Tauri</div>
+          </div>
+        </div>
+        <p class="zh">输入网址，看它命中了哪条规则、走哪个节点、出口 IP 和延迟，还能直接切换节点。配合 Karing 和 Clash Verge Rev 使用。</p>
+        <p class="en">Enter a URL to see which rule it hits, which node it uses, its exit IP and latency — and switch nodes on the spot. Works with Karing and Clash Verge Rev.</p>
+        <div class="card-links">
+          <a href="https://github.com/giornomarino/proxy-routing/releases/latest"><span class="zh">下载</span><span class="en">Download</span> →</a>
+          <a href="https://github.com/giornomarino/proxy-routing"><span class="zh">源代码</span><span class="en">Source</span></a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <img class="px" src="assets/pixel-pet.png" alt="" width="52" height="52">
+          <div>
+            <h3>Pixel Pet</h3>
+            <div class="meta">macOS (Swift) · Windows</div>
+          </div>
+        </div>
+        <p class="zh">住在桌面上的像素宠物，六种形象：灰猫、柯基、饼干仓鼠……拖到屏幕下边缘它会趴下睡觉，还会偷瞄你。</p>
+        <p class="en">A pixel pet that lives on your desktop, in six characters. Drag it to the bottom edge and it curls up to sleep — or peeks at you.</p>
+        <div class="card-links">
+          <a href="https://github.com/giornomarino/pixel-pet-macos">macOS →</a>
+          <a href="https://github.com/giornomarino/pixel-pet-windows">Windows →</a>
+        </div>
+      </article>
+
+    </div>
+  </main>
+
+  <footer>
+    <span>© <span id="y">2026</span> Giorno Marino</span>
+    <a href="https://github.com/giornomarino">github.com/giornomarino</a>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  function get(k){try{return localStorage.getItem(k)}catch(e){return null}}
+  function set(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+
+  var lang=get('lang')||((navigator.language||'').toLowerCase().indexOf('zh')===0?'zh':'en');
+  function applyLang(l){
+    root.setAttribute('data-lang',l);
+    root.lang=l==='zh'?'zh-CN':'en';
+    document.getElementById('lang').textContent=l==='zh'?'EN':'中文';
+  }
+  applyLang(lang);
+  document.getElementById('lang').onclick=function(){lang=lang==='zh'?'en':'zh';set('lang',lang);applyLang(lang)};
+
+  var theme=get('theme');
+  if(theme)root.setAttribute('data-theme',theme);
+  document.getElementById('theme').onclick=function(){
+    var dark=root.getAttribute('data-theme')?root.getAttribute('data-theme')==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+    theme=dark?'light':'dark';root.setAttribute('data-theme',theme);set('theme',theme);
+  };
+  document.getElementById('y').textContent=new Date().getFullYear();
+})();
+</script>
+</body>
+</html>
