@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>沈婷婷 30 岁生日快乐 · 生日蛋糕城堡</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="给沈婷婷的生日蛋糕城堡：吹灭蜡烛，许个愿。">
+<link rel="icon" type="image/png" href="../../assets/pixel-pet.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1e;color:#fff4e0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#view{position:fixed;inset:0;width:100vw;height:100vh;display:block;image-rendering:pixelated;touch-action:none;cursor:grab}
+#view:active{cursor:grabbing}
+.top{position:fixed;left:16px;right:16px;top:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none}
+.card{pointer-events:auto;background:rgba(16,14,40,.72);border:1px solid rgba(255,190,220,.25);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:14px;padding:12px 16px;max-width:340px}
+.card h1{font-size:16px;font-weight:700;color:#ffe0ec;margin-bottom:4px}
+.card p{font-size:12.5px;color:#d9c8e8;line-height:1.5}
+.count{pointer-events:auto;font-size:14px;font-weight:600;padding:10px 14px}
+.dock{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);display:flex;align-items:center;gap:14px}
+.blow{width:96px;height:96px;border-radius:50%;border:2px solid rgba(255,220,160,.6);background:radial-gradient(circle at 50% 40%,#ffcf5a,#ff8a2a 70%,#b0402a);
+  color:#3b1f17;font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 0 0 6px rgba(255,170,80,.15),0 10px 30px rgba(255,120,60,.35);transition:transform .1s;touch-action:none}
+.blow.on{transform:scale(.93);box-shadow:0 0 0 14px rgba(255,170,80,.22),0 6px 24px rgba(255,120,60,.5)}
+.small{font-size:13px;padding:9px 14px;border-radius:12px;border:1px solid rgba(255,190,220,.3);background:rgba(16,14,40,.72);color:#ffe0ec;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.small.on{background:rgba(255,158,198,.25);border-color:#ff9ec6}
+.meter{position:fixed;left:50%;bottom:136px;transform:translateX(-50%);width:180px;height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;opacity:0;transition:opacity .2s}
+.meter.show{opacity:1}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#9ad8ff,#fff);transition:width .08s}
+.toast{position:fixed;left:50%;top:22%;transform:translate(-50%,-50%) scale(.9);font-size:clamp(20px,4vw,30px);font-weight:800;color:#ffe9a0;text-shadow:0 2px 0 #b02a5a,0 0 18px rgba(255,160,200,.6);opacity:0;transition:all .5s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.hidden{display:none!important}
+.loading{position:fixed;inset:0;display:grid;place-items:center;font-size:14px;color:#d9c8e8;background:#0a0a1e;transition:opacity .6s}
+.loading.gone{opacity:0;pointer-events:none}
+@media (max-width:560px){.card p{display:none}.blow{width:84px;height:84px}}
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div class="top">
+  <div class="card">
+    <h1>🎂 沈婷婷的生日蛋糕城堡</h1>
+    <p id="hint">按住下面的按钮（或空格键）吹气，把蜡烛全部吹灭吧。也可以打开麦克风，对着它真的吹一口。拖动可以转动视角。</p>
+  </div>
+  <div class="card count" id="count">🕯 11 / 11</div>
+</div>
+<div class="meter" id="meter"><i></i></div>
+<div class="toast" id="toast"></div>
+<div class="dock">
+  <button class="small" id="mic" type="button">🎤 用麦克风吹</button>
+  <button class="blow" id="blow" type="button">按住<br>吹气</button>
+  <button class="small hidden" id="again" type="button">🔥 重新点燃</button>
+</div>
+<div class="loading" id="loading">正在烤蛋糕…</div>
+<script src="../ink/runtime.js"></script>
+<script src="party.js"></script>
+<script>
+(() => {
+  const canvas = document.getElementById('view');
+  const $ = id => document.getElementById(id);
+  const renderer = window.createInkRenderer(canvas, { toolkit: { KIT, PixelLook } });
+  const def = window.PARTY_SCENE({ makeBuilder, makeSculpt, KIT });
+  const world = def.build(def.seed);
+  const party = world.party;
+  const base = { ...world.cam };
+  const camera = { ...world.cam };
+  let elapsed = 0, last, auto = true, drag = null;
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(320, Math.floor(innerWidth * dpr));
+    canvas.height = Math.max(200, Math.floor(innerHeight * dpr));
+    base.dist = world.cam.dist * Math.max(1, Math.min(1.7, 1.2 * innerHeight / innerWidth));
+    if (!drag) camera.dist = base.dist * (party.revealAt != null ? 1.5 : 1);
+  }
+  addEventListener('resize', resize); resize();
+
+  /* orbit */
+  canvas.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY, camera.yaw, camera.pitch]; auto = false; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => {
+    if (!drag) return;
+    camera.yaw = drag[2] - (e.clientX - drag[0]) * 0.0065;
+    camera.pitch = Math.max(-0.1, Math.min(1.1, drag[3] + (e.clientY - drag[1]) * 0.006));
+  });
+  const endDrag = () => { if (drag) { drag = null; setTimeout(() => (auto = true), 3000); } };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('wheel', e => { e.preventDefault(); camera.dist = Math.max(10, Math.min(40, camera.dist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
+
+  /* blowing: hold the button, hold space, or the microphone */
+  let holding = false, micLevel = 0, analyser = null, buf = null;
+  const blowBtn = $('blow');
+  const press = on => { holding = on; blowBtn.classList.toggle('on', on); };
+  blowBtn.addEventListener('pointerdown', e => { e.preventDefault(); blowBtn.setPointerCapture(e.pointerId); press(true); });
+  blowBtn.addEventListener('pointerup', () => press(false));
+  blowBtn.addEventListener('pointercancel', () => press(false));
+  blowBtn.addEventListener('contextmenu', e => e.preventDefault());
+  addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); press(true); } });
+  addEventListener('keyup', e => { if (e.code === 'Space') press(false); });
+
+  $('mic').addEventListener('click', async () => {
+    if (analyser) { analyser = null; $('mic').classList.remove('on'); $('mic').textContent = '🎤 用麦克风吹'; return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const src = ac.createMediaStreamSource(stream);
+      analyser = ac.createAnalyser(); analyser.fftSize = 1024;
+      buf = new Float32Array(analyser.fftSize);
+      src.connect(analyser);
+      $('mic').classList.add('on'); $('mic').textContent = '🎤 对着麦克风吹';
+    } catch (err) {
+      toast('没能打开麦克风，用按钮吹也可以', 2200);
+    }
+  });
+  function readMic() {
+    if (!analyser) return 0;
+    analyser.getFloatTimeDomainData(buf);
+    let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+    const rms = Math.sqrt(s / buf.length);
+    // a breath on the mic is loud broadband noise; ignore normal room sound
+    return Math.max(0, Math.min(1, (rms - 0.06) / 0.18));
+  }
+
+  /* UI state */
+  let toastTimer = 0;
+  function toast(text, ms) {
+    const t = $('toast'); t.textContent = text; t.classList.add('show');
+    clearTimeout(toastTimer); if (ms) toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+  }
+  party.onChange = p => {
+    $('count').textContent = '🕯 ' + p.litCount + ' / ' + p.total;
+    if (p.litCount === 0 && p.revealAt == null) toast('许个愿吧…', 0);
+    if (p.revealAt != null) {
+      $('toast').classList.remove('show');
+      $('blow').classList.add('hidden'); $('mic').classList.add('hidden'); $('again').classList.remove('hidden');
+      $('hint').textContent = '婷婷，30 岁生日快乐！愿望已经出发啦。拖动可以从各个角度看，点「重新点燃」可以再吹一次。';
+    }
+  };
+  $('again').addEventListener('click', () => {
+    party.relight();
+    $('toast').classList.remove('show');
+    $('blow').classList.remove('hidden'); $('mic').classList.remove('hidden'); $('again').classList.add('hidden');
+    $('hint').textContent = '按住下面的按钮（或空格键）吹气，把蜡烛全部吹灭吧。也可以打开麦克风，对着它真的吹一口。拖动可以转动视角。';
+    party.onChange(party);
+  });
+
+  let gust = 0, tgtY = base.target[1];
+  function frame(now) {
+    const dt = last === undefined ? 0 : Math.min(0.05, (now - last) / 1000);
+    last = now; elapsed += dt;
+    micLevel = readMic();
+    const want = party.revealAt != null ? 0 : Math.max(holding ? 1 : 0, micLevel);
+    gust += (want - gust) * Math.min(1, dt * (want > gust ? 6 : 3));
+    party.blowing = gust;
+    $('meter').classList.toggle('show', gust > 0.03);
+    $('meter').firstElementChild.style.width = (gust * 100).toFixed(0) + '%';
+    // the breath comes from the viewer, so it pushes the flames away from the camera
+    party.wind = [-Math.sin(camera.yaw), 0, -Math.cos(camera.yaw)];
+    party.yaw = camera.yaw;
+
+    if (auto && !drag) camera.yaw += dt * (party.revealAt != null ? 0.12 : 0.06);
+    // frame the floating text after the reveal
+    const rk = party.revealAt != null ? 1 : 0;
+    tgtY += (base.target[1] + rk * 4.9 - tgtY) * Math.min(1, dt * 1.5);
+    camera.target = [0, tgtY, 0];
+    if (!drag) {
+      const wantDist = base.dist * (rk ? 1.55 : 1);
+      camera.dist += (wantDist - camera.dist) * Math.min(1, dt * 1.5);
+      if (rk) camera.pitch += (0.16 - camera.pitch) * Math.min(1, dt * 1.2);
+    }
+    world.anim.update(dt, elapsed);
+    renderer.render(world, { width: canvas.width, height: canvas.height, time: elapsed, camera, damp: false });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  requestAnimationFrame(() => $('loading').classList.add('gone'));
+  window.__party = party;
+})();
+</script>
+</body>
+</html>
