@@ -61,6 +61,8 @@ function ellipsoid(cl, o){
     const nor = new THREE.Vector3(d.x / r[0], d.y / r[1], d.z / r[2]).normalize();
     if (rot){ pos.applyMatrix4(rot); nor.applyMatrix4(rot); }
     pos.add(c);
+    if (o.holes && o.holes.some(h => pos.distanceTo(V(h.c)) < h.r)) continue;
+    if (o.clipY != null && pos.y < o.clipY) continue;
     cl.push(pos, nor, o.color(pos, nor, 0, R), o.size || 0.07, { e: o.e, g: o.g, u: o.u ?? 0, k: o.k });
   }
 }
@@ -86,6 +88,7 @@ function tube(cl, o){
     const th = R() * Math.PI * 2;
     const dir = N1.multiplyScalar(Math.cos(th)).add(B.multiplyScalar(Math.sin(th)));
     const pos = P.clone().addScaledVector(dir, rad * (1 - R() * 0.08));
+    if (o.clipY != null && pos.y < o.clipY){ made++; continue; }
     cl.push(pos, dir, o.color(pos, dir, t, R), (o.size || 0.07) * (o.sizeT ? o.sizeT(t) : 1),
       { e: typeof o.e === 'function' ? o.e(t) : o.e, g: o.g, u: o.uMap ? o.uMap(t) : t, k: o.k });
     made++;
@@ -120,203 +123,273 @@ function softBlob(cl, center, radii, n, o){
   }
 }
 
-/* ---------- Scene 1: ice dragon ---------- */
+/* ---------- Scene 1: bone dragon peering over a platform ---------- */
 function buildDragon(){
   const R = rng(11);
   const S = new Cloud(R);
+  const TOP = -0.7, RIM = 1.25;
 
-  const scaleCol = (p, n) => {
-    const v = fbm(p.x * 4 + 3, p.y * 4, p.z * 4);
-    let c = mix3([0.17, 0.27, 0.46], [0.42, 0.58, 0.82], clamp01(v * 1.6 - 0.3));
-    if (n.y < -0.35) c = mix3(c, [0.55, 0.68, 0.88], 0.35);
-    if (hash3(p.x * 91, p.y * 91, p.z * 91) > 0.94) c = [0.78, 0.9, 1.0];
+  const boneCol = (p, n, t) => {
+    const v = fbm(p.x * 5 + 3, p.y * 5, p.z * 5);
+    let c = mix3([0.5, 0.64, 0.76], [0.86, 0.94, 0.98], clamp01(v * 1.5 - 0.15));
+    if (fbm(p.x * 13, p.y * 13, p.z * 13) > 0.68) c = mix3(c, [0.28, 0.4, 0.52], 0.6); // cracks
     return c;
   };
-  const bone = (p, n, t) => {
-    const v = fbm(p.x * 6, p.y * 6, p.z * 6);
-    return mix3([0.62, 0.72, 0.88], [0.92, 0.96, 1.0], clamp01(v + t * 0.4));
-  };
-  const darkSpike = (p, n, t) => mix3([0.12, 0.17, 0.3], [0.36, 0.48, 0.68], t * 0.8 + hash3(p.x * 50, p.y, p.z) * 0.15);
-  const rock = (p, n) => {
-    const v = fbm(p.x * 2.5 + 9, p.y * 2.5, p.z * 2.5);
-    let c = mix3([0.07, 0.1, 0.17], [0.22, 0.3, 0.44], clamp01(v * 1.5 - 0.2));
-    if (n.y > 0.8 && v > 0.64) c = mix3(c, [0.5, 0.62, 0.8], 0.55);
+  const armCol = (p, n, t) => mix3(boneCol(p, n, t), [0.3, 0.42, 0.55], 0.25);
+  const darkBone = (p, n, t) => mix3([0.12, 0.18, 0.28], [0.34, 0.46, 0.6], clamp01(t * 0.7 + hash3(p.x * 40, p.y * 40, p.z * 40) * 0.2));
+  const clawCol = (p, n, t) => mix3([0.85, 0.9, 0.92], [0.98, 0.72, 0.46], clamp01(t * 1.3 - 0.2));
+  const stone = (p, n) => {
+    const v = fbm(p.x * 3 + 9, p.y * 3, p.z * 3);
+    let c = mix3([0.07, 0.11, 0.18], [0.2, 0.3, 0.42], clamp01(v * 1.6 - 0.25));
+    // flagstone seams
+    const gx = Math.abs(((p.x * 2.6 + Math.floor(p.z * 2.6) * 0.5) % 1 + 1) % 1 - 0.5), gz = Math.abs(((p.z * 2.6) % 1 + 1) % 1 - 0.5);
+    if (n.y > 0.8 && (gx > 0.45 || gz > 0.45)) c = mix3(c, [0.05, 0.08, 0.13], 0.7);
     return c;
   };
-  const ice = (p, n, t) => mix3([0.36, 0.58, 0.84], [0.82, 0.94, 1.0], clamp01(t * 0.9 + (n.x > 0.3 ? 0.25 : 0)));
 
-  // rocky ledge
-  const groundH = (x, z) => -1 + (fbm(x * 1.4 + 5, 0, z * 1.4) - 0.5) * 0.32 + Math.max(0, fbm(x * 3, 1, z * 3) - 0.62) * 0.6;
-  const edge = (th) => 2.3 * (0.82 + 0.18 * vnoise(Math.cos(th) * 2 + 4, Math.sin(th) * 2, 0.5));
-  for (let i = 0; i < 15000; i++){
-    const th = R() * Math.PI * 2, r = 2.35 * Math.sqrt(R());
-    if (r > edge(th)) continue;
-    const x = r * Math.cos(th), z = r * Math.sin(th), y = groundH(x, z);
-    const e = 0.03;
-    const nor = new THREE.Vector3(groundH(x - e, z) - groundH(x + e, z), 2 * e, groundH(x, z - e) - groundH(x, z + e)).normalize();
-    const pos = new THREE.Vector3(x, y, z);
-    S.push(pos, nor, rock(pos, nor), 0.08);
+  /* platform */
+  const rimR = (th) => RIM * (0.94 + 0.06 * vnoise(Math.cos(th) * 2 + 4, Math.sin(th) * 2, 0.5));
+  for (let i = 0; i < 9000; i++){
+    const th = R() * Math.PI * 2, r = RIM * Math.sqrt(R());
+    if (r > rimR(th)) continue;
+    const pos = new THREE.Vector3(r * Math.cos(th), TOP + (vnoise(pos0(th, r)[0], 0, pos0(th, r)[1]) - 0.5) * 0.03, r * Math.sin(th));
+    S.push(pos, new THREE.Vector3(0, 1, 0), stone(pos, { y: 1 }), 0.07);
   }
-  for (let i = 0; i < 4200; i++){ // cliff skirt
-    const th = R() * Math.PI * 2, d = Math.pow(R(), 0.8);
-    const er = edge(th) * (1 - d * 0.35 - R() * 0.05);
-    const x = er * Math.cos(th), z = er * Math.sin(th);
-    const pos = new THREE.Vector3(x, groundH(x, z) - d * (0.6 + 0.35 * vnoise(th * 3, 2, 0)), z);
-    const nor = new THREE.Vector3(Math.cos(th), -0.3, Math.sin(th)).normalize();
-    S.push(pos, nor, mix3(rock(pos, nor), [0.04, 0.06, 0.1], d * 0.7), 0.085);
+  function pos0(th, r){ return [r * Math.cos(th) * 3, r * Math.sin(th) * 3]; }
+  for (let i = 0; i < 6500; i++){ // rounded rocky underside
+    const th = R() * Math.PI * 2, d = Math.pow(R(), 0.9);
+    const rr = rimR(th) * Math.cos(d * 1.3) * (0.95 + 0.1 * vnoise(th * 4, d * 4, 1));
+    const pos = new THREE.Vector3(rr * Math.cos(th), TOP - Math.sin(d * 1.3) * 0.5, rr * Math.sin(th));
+    const nor = new THREE.Vector3(Math.cos(th) * Math.cos(d * 1.3), -Math.sin(d * 1.3), Math.sin(th) * Math.cos(d * 1.3));
+    const v = fbm(pos.x * 4, pos.y * 4, pos.z * 4);
+    S.push(pos, nor, mix3([0.05, 0.08, 0.13], [0.2, 0.3, 0.42], clamp01(v * 1.4 - 0.2) * (1 - d * 0.6)), 0.08);
   }
-  // glowing ice pool in front of the claws
-  for (let i = 0; i < 900; i++){
-    const th = R() * Math.PI * 2, r = 0.42 * Math.sqrt(R()) * (0.85 + 0.15 * Math.sin(th * 3));
-    const pos = new THREE.Vector3(0.1 + r * Math.cos(th) * 1.3, -0.93, 1.05 + r * Math.sin(th));
-    S.push(pos, new THREE.Vector3(0, 1, 0), mix3([0.3, 0.6, 0.9], [0.75, 0.92, 1.0], R() * 0.4 + (1 - r / 0.42) * 0.5), 0.07, { e: 0.6, g: 5 });
+  // rubble along the rim
+  for (let j = 0; j < 22; j++){
+    const th = R() * Math.PI * 2, sz = 0.05 + R() * 0.08, rr = rimR(th) - 0.05 - R() * 0.1;
+    ellipsoid(S, { c: [rr * Math.cos(th), TOP + sz * 0.4, rr * Math.sin(th)], r: [sz, sz * 0.7, sz], color: (p, n) => stone(p, { y: 0 }), size: 0.05, density: 1600 });
   }
-  // ice crystals
-  const crystals = [
-    [1.45, 0.25, 0.75, 0.13, 0.25, 0.1], [1.7, -0.15, 0.55, 0.09, -0.3, 0.2], [1.25, 0.6, 0.45, 0.08, 0.2, -0.25],
-    [1.6, 0.6, 1.0, 0.15, 0.05, -0.1], [1.95, 0.25, 0.4, 0.07, 0.4, 0.15],
-    [-1.55, -0.45, 0.9, 0.14, -0.15, -0.2], [-1.8, -0.1, 0.55, 0.09, -0.4, 0.1], [-1.35, -0.9, 0.6, 0.1, 0.25, -0.3],
-    [-0.95, 1.25, 0.4, 0.07, -0.2, 0.3], [-1.15, 1.05, 0.28, 0.05, 0.3, 0.2], [0.9, 1.35, 0.3, 0.06, 0.3, -0.2],
-  ];
-  for (const [x, z, h, rad, tx, tz] of crystals){
-    const y0 = groundH(x, z) - 0.05;
-    tube(S, {
-      pts: [[x, y0, z], [x + tx * h, y0 + h, z + tz * h]],
-      r: (t) => (t < 0.72 ? rad : rad * (1 - (t - 0.72) / 0.28)) + 0.004,
-      color: ice, size: 0.06, e: (t) => 0.05 + t * 0.25, density: 1300,
-    });
+  // glowing rune circle (group 5)
+  const RC = [0.05, TOP + 0.012, 0.35];
+  for (let i = 0; i < 1600; i++){
+    const th = R() * Math.PI * 2;
+    let r;
+    const pick = R();
+    if (pick < 0.35) r = 0.36 + (R() - 0.5) * 0.03;
+    else if (pick < 0.55) r = 0.27 + (R() - 0.5) * 0.02;
+    else if (pick < 0.75){ // star lines
+      const k = Math.floor(R() * 5), a0 = k * Math.PI * 2 / 5, a1 = a0 + Math.PI * 4 / 5, f = R();
+      const x = Math.cos(a0) * (1 - f) + Math.cos(a1) * f, z = Math.sin(a0) * (1 - f) + Math.sin(a1) * f;
+      const pos = new THREE.Vector3(RC[0] + x * 0.27, RC[1], RC[2] + z * 0.27);
+      S.push(pos, new THREE.Vector3(0, 1, 0), [0.5, 0.82, 0.95], 0.04, { e: 0.8, g: 5 });
+      continue;
+    } else r = R() * 0.26;
+    const glow = pick < 0.75;
+    const pos = new THREE.Vector3(RC[0] + r * Math.cos(th), RC[1], RC[2] + r * Math.sin(th));
+    S.push(pos, new THREE.Vector3(0, 1, 0), glow ? [0.55, 0.85, 0.98] : [0.22, 0.38, 0.5], 0.045, { e: glow ? 0.8 : 0.25, g: 5 });
+  }
+  // torches
+  const torches = [[-0.42, 0.6], [0.48, 0.78]];
+  for (const [x, z] of torches){
+    tube(S, { pts: [[x, TOP, z], [x, TOP + 0.42, z]], r: () => 0.025, color: () => [0.08, 0.1, 0.14], size: 0.04, density: 3000 });
+    cone(S, [x, TOP + 0.42, z], [x, TOP + 0.36, z], 0.06, { color: () => [0.2, 0.18, 0.18], size: 0.035, density: 4000 });
+  }
+  // striped stalagmites around the edge
+  const stal = [[-1.15, -0.25, 1.05, 0.2], [-1.2, 0.35, 0.65, 0.14], [-0.95, -0.75, 0.75, 0.15], [1.15, -0.4, 1.15, 0.2], [1.2, 0.25, 0.7, 0.14], [0.9, -0.85, 0.6, 0.13], [-0.6, -1.05, 0.5, 0.11], [0.5, 1.15, 0.45, 0.1]];
+  for (const [x, z, h, rad] of stal){
+    tube(S, { pts: [[x, TOP - 0.1, z], [x * 1.02, TOP + h, z * 1.02]], r: (t) => rad * Math.pow(1 - t, 0.9) + 0.006,
+      color: (p, n, t) => { const band = Math.floor(t * 7) % 2; const c = mix3([0.16, 0.26, 0.38], [0.42, 0.58, 0.7], t * 0.6 + (n.x * 0.3 + 0.2)); return band ? mix3(c, [0.08, 0.13, 0.2], 0.45) : c; },
+      size: 0.055, density: 1500 });
   }
 
-  // body
-  ellipsoid(S, { c: [0, -0.4, -0.15], r: [0.72, 0.6, 0.68], color: scaleCol, g: 7 });
-  ellipsoid(S, { c: [0, -0.15, -0.8], r: [0.78, 0.58, 0.75], color: scaleCol, g: 7 });
-  ellipsoid(S, { c: [0, -0.55, -1.45], r: [0.5, 0.36, 0.6], color: scaleCol });
-  tube(S, { pts: [[0, -0.6, -1.7], [0.4, -0.85, -2.0], [1.1, -0.9, -1.8], [1.5, -0.85, -1.2]], r: (t) => 0.3 * (1 - t) + 0.03, color: scaleCol });
-  // neck (group 6 follows the head partially)
-  const neckPts = [[0, -0.05, -0.35], [0, 0.42, -0.1], [0.05, 0.78, 0.2], [0.1, 0.92, 0.42]];
-  const neck = tube(S, { pts: neckPts, r: (t) => 0.36 - t * 0.14, color: scaleCol, g: 6 });
-
-  // head (group 1)
-  ellipsoid(S, { c: [0.1, 1.02, 0.6], r: [0.3, 0.26, 0.38], color: scaleCol, g: 1 });
-  ellipsoid(S, { c: [0.12, 0.93, 1.0], r: [0.18, 0.14, 0.36], color: scaleCol, g: 1 });
-  ellipsoid(S, { c: [0.12, 0.76, 0.86], r: [0.16, 0.07, 0.34], rot: [0.25, 0, 0], color: (p, n) => mix3(scaleCol(p, n), [0.1, 0.14, 0.24], 0.4), g: 1 });
+  /* skull (group 1) — chin resting over the back of the platform, facing +z */
+  const sk = (o) => ellipsoid(S, { g: 1, color: boneCol, ...o });
+  const sockets = [{ c: [-0.33, 0.47, -0.1], r: 0.15 }, { c: [0.33, 0.47, -0.1], r: 0.15 }];
+  const nostrils = [{ c: [-0.13, 0.27, 0.92], r: 0.065 }, { c: [0.13, 0.27, 0.92], r: 0.065 }];
+  sk({ c: [0, 0.4, -0.45], r: [0.42, 0.25, 0.55], holes: sockets });
+  sk({ c: [0, 0.22, 0.35], r: [0.29, 0.13, 0.66], rot: [0.15, 0, 0], holes: [...nostrils, ...sockets] });
+  sk({ c: [0, 0.36, 0.0], r: [0.36, 0.17, 0.36], holes: sockets });
   for (const s of [-1, 1]){
-    ellipsoid(S, { c: [0.1 + s * 0.17, 1.13, 0.78], r: [0.1, 0.05, 0.16], color: scaleCol, g: 1 });            // brow
-    ellipsoid(S, { c: [0.1 + s * 0.2, 1.06, 0.84], r: [0.055, 0.04, 0.05], color: () => [1.0, 0.62, 0.22], e: 1.2, g: 2, size: 0.05, density: 2500 });
-    tube(S, { pts: [[0.1 + s * 0.16, 1.18, 0.52], [0.1 + s * 0.38, 1.48, 0.12], [0.1 + s * 0.48, 1.82, -0.38], [0.1 + s * 0.42, 2.05, -0.92]],
-      r: (t) => 0.095 * (1 - t) + 0.008, color: bone, g: 1, size: 0.06, density: 1300 });
-    cone(S, [0.1 + s * 0.26, 0.95, 0.58], [0.1 + s * 0.78, 1.08, 0.1], 0.05, { color: bone, g: 1, size: 0.05, density: 1300 });
-    cone(S, [0.1 + s * 0.22, 0.85, 0.66], [0.1 + s * 0.62, 0.72, 0.2], 0.04, { color: bone, g: 1, size: 0.05, density: 1300 });
-    for (let j = 0; j < 4; j++){
-      const bz = 0.42 - j * 0.05, by = 1.1 - j * 0.07;
-      cone(S, [0.1 + s * 0.12, by, bz], [0.1 + s * (0.3 + j * 0.12), by + 0.18 - j * 0.12, bz - 0.45 - j * 0.05], 0.035, { color: darkSpike, g: 1, size: 0.05, density: 1300 });
+    tube(S, { pts: [[s * 0.18, 0.63, 0.06], [s * 0.38, 0.62, -0.1], [s * 0.47, 0.55, -0.32]], r: () => 0.06, color: boneCol, g: 1 }); // brow
+    tube(S, { pts: [[s * 0.3, 0.28, 0.05], [s * 0.45, 0.3, -0.3], [s * 0.42, 0.28, -0.7]], r: () => 0.06, color: boneCol, g: 1 }); // cheekbone
+    ellipsoid(S, { c: [s * 0.29, 0.46, -0.16], r: [0.09, 0.12, 0.1], color: () => [0.04, 0.06, 0.1], g: 1, size: 0.05, density: 2500 }); // socket depth
+    ellipsoid(S, { c: [s * 0.31, 0.46, -0.08], r: [0.06, 0.065, 0.05], color: () => [1.0, 0.62, 0.25], e: 1.3, g: 2, size: 0.045, density: 4000 });
+    ellipsoid(S, { c: [s * 0.12, 0.25, 0.9], r: [0.045, 0.04, 0.04], color: () => [0.03, 0.04, 0.07], g: 1, size: 0.04, density: 4000 });
+    // horns
+    tube(S, { pts: [[s * 0.2, 0.66, -0.45], [s * 0.3, 1.1, -0.72], [s * 0.38, 1.62, -1.1]], r: (t) => 0.13 * Math.pow(1 - t, 0.9) + 0.01, color: boneCol, g: 1, density: 1100 });
+    // upper teeth
+    for (let k = 0; k < 9; k++){
+      const f = k / 8;
+      const x = s * (0.27 - f * 0.14), z = -0.1 + f * 0.95, y = 0.06 - f * 0.04;
+      const L = 0.1 + (k === 7 ? 0.1 : 0) + hash3(k, s, 3) * 0.05;
+      cone(S, [x, y, z], [x * 0.95, y - L, z + 0.02], 0.035, { color: (p, n, t) => mix3([0.8, 0.88, 0.92], [1, 1, 1], t), g: 1, size: 0.04, density: 3500 });
     }
-    for (let j = 0; j < 5; j++){ // teeth
-      const z = 0.82 + j * 0.08;
-      cone(S, [0.12 + s * (0.14 - j * 0.015), 0.85, z], [0.12 + s * (0.14 - j * 0.015), 0.76, z + 0.02], 0.018, { color: () => [0.93, 0.97, 1.0], g: 1, size: 0.04, density: 3000 });
-    }
   }
-  // spines along the neck and back
-  for (let j = 0; j < 9; j++){
-    const t = j / 8;
-    const P = neck.getPointAt(1 - t);
-    const len = 0.28 + t * 0.25;
-    cone(S, [P.x, P.y + 0.15, P.z - 0.18], [P.x, P.y + 0.15 + len * 0.6, P.z - 0.18 - len], 0.05, { color: darkSpike, g: 6, uMap: () => 1 - t, size: 0.055, density: 1300 });
+  // frill of long dark spikes fanning out behind the skull
+  for (let k = 0; k < 13; k++){
+    const a = -1.25 + k / 12 * 2.5;
+    const len = 0.9 + hash3(k, 7, 1) * 0.6 - Math.abs(a) * 0.15;
+    const dir = new THREE.Vector3(Math.sin(a) * 1.1, Math.cos(a) * 0.85 + 0.25, -0.75).normalize();
+    const base = new THREE.Vector3(Math.sin(a) * 0.25, 0.48 + Math.cos(a) * 0.18, -0.85);
+    cone(S, base.toArray(), base.clone().addScaledVector(dir, len).toArray(), 0.045, { color: darkBone, g: 1, size: 0.045, density: 1500 });
   }
-  // long dark spears radiating from the back
-  const spears = [[-0.4, 1.7, -1.0, 1.0], [0.35, 1.9, -1.2, 1.1], [-1.1, 1.3, -1.1, 0.9], [1.0, 1.4, -1.3, 0.95], [-0.1, 1.2, -1.9, 0.8], [1.4, 0.8, -0.9, 0.8], [-1.5, 0.6, -0.6, 0.75]];
-  for (const [dx, dy, dz, l] of spears){
-    const base = [dx * 0.25, 0.1, -0.7 + dz * 0.1];
-    cone(S, base, [base[0] + dx * l, base[1] + dy * l, base[2] + dz * l], 0.06, { color: darkSpike, size: 0.055, density: 1100 });
-  }
-  // front legs + claws
+  // lower jaw (group 8, hinged near the back)
+  ellipsoid(S, { c: [0, -0.1, 0.22], r: [0.26, 0.09, 0.6], rot: [-0.04, 0, 0], color: boneCol, g: 8 });
+  ellipsoid(S, { c: [0, -0.03, 0.18], r: [0.16, 0.04, 0.42], color: () => [0.5, 0.2, 0.12], e: 0.12, g: 8, size: 0.05, density: 1600 }); // tongue / throat glow
   for (const s of [-1, 1]){
-    tube(S, { pts: [[s * 0.5, -0.25, 0.1], [s * 0.82, -0.5, 0.45], [s * 0.62, -0.88, 0.78]], r: (t) => 0.2 - t * 0.09, color: scaleCol });
-    ellipsoid(S, { c: [s * 0.62, -0.9, 0.82], r: [0.16, 0.07, 0.16], color: scaleCol });
-    for (let j = 0; j < 4; j++){
-      const a = (j - 1.5) * 0.42 + (s > 0 ? 0.15 : -0.15);
-      const dx = Math.sin(a), dz = Math.cos(a);
-      tube(S, { pts: [[s * 0.62 + dx * 0.1, -0.9, 0.82 + dz * 0.1], [s * 0.62 + dx * 0.24, -0.86, 0.82 + dz * 0.24], [s * 0.62 + dx * 0.33, -0.97, 0.82 + dz * 0.33]],
-        r: (t) => 0.035 * (1 - t) + 0.006, color: bone, size: 0.045, density: 2500, e: 0.1 });
+    for (let k = 0; k < 8; k++){
+      const f = k / 7;
+      const x = s * (0.23 - f * 0.12), z = -0.02 + f * 0.75, y = -0.03;
+      cone(S, [x, y, z], [x * 0.95, y + 0.09 + hash3(k, s, 9) * 0.05, z - 0.02], 0.03, { color: (p, n, t) => mix3([0.8, 0.88, 0.92], [1, 1, 1], t), g: 8, size: 0.04, density: 3500 });
     }
-  }
-  // wings (group 3)
-  for (const s of [-1, 1]){
-    const root = [s * 0.5, 0.15, -0.75], elbow = [s * 1.1, 0.95, -0.95], tip = [s * 1.55, 1.55, -1.3];
-    tube(S, { pts: [root, elbow, tip], r: (t) => 0.1 - t * 0.06, color: bone, g: 3, size: 0.06 });
-    const fingers = [[s * 2.25, 1.35, -1.65], [s * 2.15, 0.6, -1.55], [s * 1.9, -0.05, -1.35], [s * 1.35, -0.35, -1.1]];
-    let prev = elbow;
-    for (const f of fingers){
-      cone(S, tip, f, 0.035, { color: bone, g: 3, size: 0.05, density: 1500 });
-      tri(S, tip, prev, f, { color: (p, n, w) => mix3([0.1, 0.15, 0.27], [0.24, 0.34, 0.52], hash3(p.x * 40, p.y * 40, p.z * 40) * 0.6 + w * 0.2), g: 3, size: 0.055, density: 380 });
-      prev = f;
-    }
-    tri(S, prev, root, elbow, { color: () => [0.13, 0.19, 0.32], g: 3, size: 0.055, density: 380 });
   }
 
-  // soft layers
+  // enlarge and seat the whole head (groups 1, 2, 8) so the chin rests on the back rim
+  {
+    const k = 1.15, O = [0, 0.2, -0.9], off = [0, -0.3, -0.8];
+    for (let i = 0; i < S.i; i++){
+      const g = S.m[i * 3];
+      if (g !== 1 && g !== 2 && g !== 8) continue;
+      for (let a = 0; a < 3; a++) S.p[i * 3 + a] = (S.p[i * 3 + a] - O[a]) * k + O[a] + off[a];
+      S.s[i] *= 1.1;
+    }
+  }
+
+  /* neck vertebrae arching back (group 6, u = 1 at the skull) */
+  const neck = new THREE.CatmullRomCurve3([[0, 0.0, -1.75], [0, 0.4, -2.25], [0, 0.3, -2.8], [0, -0.2, -3.1], [0, -0.85, -3.15]].map(V));
+  for (let k = 0; k < 14; k++){
+    const t = k / 13, P = neck.getPointAt(t), T = neck.getTangentAt(t);
+    const D = new THREE.Vector3().crossVectors(T, new THREE.Vector3(1, 0, 0)).normalize();
+    const sz = 0.13 - t * 0.03, u = 1 - t;
+    ellipsoid(S, { c: P.toArray(), r: [sz * 1.1, sz * 0.9, sz * 0.9], color: boneCol, g: 6, u, size: 0.06, density: 1300 });
+    const len = 0.32 + Math.sin(t * Math.PI) * 0.15;
+    cone(S, P.toArray(), P.clone().addScaledVector(D, len).addScaledVector(T, -len * 0.45).toArray(), 0.05, { color: darkBone, g: 6, uMap: () => u, size: 0.05, density: 1500 });
+    for (const s of [-1, 1]) cone(S, P.toArray(), P.clone().add(new THREE.Vector3(s * sz * 2.2, -0.03, 0)).toArray(), 0.035, { color: boneCol, g: 6, uMap: () => u, size: 0.045, density: 2500 });
+  }
+
+  /* arms arching up and clawed hands gripping the rim */
+  for (const s of [-1, 1]){
+    const sh = [s * 0.8, -0.45, -1.35], el = [s * 1.45, 0.62, -0.6], wr = [s * 1.34, -0.44, 0.3];
+    tube(S, { pts: [sh, [s * 1.2, 0.2, -1.1], el], r: (t) => 0.1 - t * 0.02, color: armCol, g: 9 });
+    ellipsoid(S, { c: el, r: [0.11, 0.11, 0.11], color: armCol, g: 9 });
+    for (const o of [-1, 1]){ // radius + ulna
+      tube(S, { pts: [[el[0] + o * 0.05, el[1], el[2] + o * 0.04], [s * (1.5 + o * 0.03), 0.15, -0.1 + o * 0.04], [wr[0] + o * 0.04, wr[1] + 0.05, wr[2] + o * 0.06]],
+        r: (t) => 0.05 - t * 0.01, color: armCol, g: 9 });
+    }
+    ellipsoid(S, { c: wr, r: [0.13, 0.1, 0.16], color: boneCol, g: 9 });
+    for (let k = 0; k < 4; k++){
+      const a = (k - 1.5) * 0.36;
+      const d = new THREE.Vector3(-s * Math.cos(a), 0, Math.sin(a)).normalize();
+      const W = V(wr);
+      const k1 = W.clone().addScaledVector(d, 0.3).add(new THREE.Vector3(0, -0.08, 0));
+      const k2 = W.clone().addScaledVector(d, 0.58).add(new THREE.Vector3(0, -0.24, 0));
+      const tip = W.clone().addScaledVector(d, 0.82).add(new THREE.Vector3(0, -0.31, 0));
+      const fs = { color: boneCol, g: 10, k: k + (s > 0 ? 4 : 0) };
+      tube(S, { ...fs, pts: [W.toArray(), k1.toArray()], r: () => 0.055 });
+      ellipsoid(S, { ...fs, c: k1.toArray(), r: [0.065, 0.065, 0.065], u: 0.5, size: 0.05, density: 2500 });
+      tube(S, { ...fs, pts: [k1.toArray(), k2.toArray()], r: () => 0.05, uMap: (t) => 0.5 + t * 0.3 });
+      ellipsoid(S, { ...fs, c: k2.toArray(), r: [0.055, 0.055, 0.055], u: 0.8, size: 0.05, density: 2500 });
+      tube(S, { ...fs, pts: [k2.toArray(), tip.toArray()], r: (t) => 0.06 * (1 - t) + 0.006, color: clawCol, uMap: (t) => 0.8 + t * 0.2, density: 1600 });
+    }
+  }
+
+  /* soft layers */
   const spark = new Cloud(R, true);
-  for (let i = 0; i < 650; i++){
-    const th = R() * Math.PI * 2, r = 0.3 + 2.8 * Math.sqrt(R());
-    spark.push(new THREE.Vector3(r * Math.cos(th), -1.2 + R() * 3.8, r * Math.sin(th)), null,
-      R() < 0.85 ? [0.55, 0.78, 1.0] : [1.0, 0.75, 0.4], 0.035 + R() * 0.03, { a: 0.9, g: 0, u: R(), k: R() * 10 });
+  for (let i = 0; i < 600; i++){
+    const th = R() * Math.PI * 2, r = 0.3 + 2.6 * Math.sqrt(R());
+    spark.push(new THREE.Vector3(r * Math.cos(th), -1.4 + R() * 3.6, r * Math.sin(th)), null,
+      R() < 0.85 ? [0.55, 0.8, 0.95] : [1.0, 0.72, 0.4], 0.03 + R() * 0.03, { a: 0.85, g: 0, u: R(), k: R() * 10 });
   }
-  const breath = new Cloud(R, true);
-  for (let i = 0; i < 160; i++){
-    breath.push(new THREE.Vector3(0.12, 0.8, 1.35), null, [0.45, 0.66, 0.92], 0.06, { a: 0.13, g: 1, u: R(), k: R() * 10 });
+  const glow = new Cloud(R, true);
+  for (const [x, z] of torches){
+    for (let i = 0; i < 70; i++) glow.push(new THREE.Vector3(x, TOP + 0.47, z), null, [1.0, 0.62, 0.22], 0.06, { a: 0.3, g: 1, u: R(), k: R() * 10 });
+    for (let i = 0; i < 40; i++) glow.push(new THREE.Vector3(x, TOP + 0.47, z), null, [1.0, 0.55, 0.2], 0.035, { a: 0.9, g: 4, u: R(), k: R() * 10 });
   }
-  for (let i = 0; i < 140; i++){
-    const th = R() * Math.PI * 2, r = 0.4 * Math.sqrt(R());
-    breath.push(new THREE.Vector3(0.1 + r * Math.cos(th) * 1.3, -0.93, 1.05 + r * Math.sin(th)), null, [0.6, 0.9, 1.0], 0.045, { a: 0.8, g: 2, u: R(), k: R() * 10 });
+  for (let i = 0; i < 160; i++){ // frosty breath from the jaws
+    glow.push(new THREE.Vector3(0, -0.33, 0.43), null, [0.5, 0.75, 0.95], 0.06, { a: 0.12, g: 3, u: R(), k: R() * 10 });
+  }
+  for (let i = 0; i < 90; i++){
+    const th = R() * Math.PI * 2, r = 0.36 * Math.sqrt(R());
+    glow.push(new THREE.Vector3(RC[0] + r * Math.cos(th), TOP, RC[2] + r * Math.sin(th)), null, [0.55, 0.88, 1.0], 0.04, { a: 0.8, g: 2, u: R(), k: R() * 10 });
   }
 
-  return { solid: S, soft: [{ cloud: spark, additive: true, order: 2 }, { cloud: breath, additive: true, order: 3 }] };
+  return { solid: S, soft: [{ cloud: spark, additive: true, order: 2 }, { cloud: glow, additive: true, order: 3 }] };
 }
 
-const DRAGON_SOLID = /* glsl */`
+const DRAGON_COMMON = /* glsl */`
+  float lunge(float t){ return pow(max(0.0, sin(t * 0.45 - 0.5)), 10.0); }
+  vec3 headX(vec3 p, float w, float t){
+    vec3 piv = vec3(0.0, 0.0, -2.3);
+    float L = lunge(t);
+    float ax = (0.045 * sin(t * 0.8) - 0.1 * L) * w;
+    float ay = 0.12 * sin(t * 0.33) * w;
+    vec3 q = rotY(rotX(p - piv, ax), ay) + piv;
+    return q + vec3(0.0, 0.02 + 0.02 * sin(t * 1.3), 0.14 * L) * w;
+  }
+  vec3 headN(vec3 n, float w, float t){
+    float L = lunge(t);
+    return rotY(rotX(n, (0.045 * sin(t * 0.8) - 0.1 * L) * w), 0.12 * sin(t * 0.33) * w);
+  }
+`;
+const DRAGON_SOLID = DRAGON_COMMON + /* glsl */`
   void animate(inout vec3 p, inout vec3 n, inout vec3 c, inout float e, inout float s, vec3 m, float t){
     float g = m.x;
-    if (g == 1.0 || g == 2.0 || g == 6.0){
-      vec3 pivot = vec3(0.1, 0.85, 0.3);
-      float w = g == 6.0 ? m.y * m.y : 1.0;
-      float ax = (sin(t * 0.7) * 0.07 - 0.02) * w, ay = sin(t * 0.43) * 0.16 * w;
-      p = rotY(rotX(p - pivot, ax), ay) + pivot;
-      n = rotY(rotX(n, ax), ay);
-      if (g == 2.0) e = 1.0 + 0.6 * (0.5 + 0.5 * sin(t * 2.2));
-    } else if (g == 3.0){
-      float side = sign(p.x);
-      vec3 pivot = vec3(side * 0.5, 0.15, -0.75);
-      float a = (sin(t * 0.9) * 0.13 + 0.03) * side;
-      p = rotY(rotZ(p - pivot, a), -a * 0.4) + pivot;
-      n = rotY(rotZ(n, a), -a * 0.4);
+    if (g == 8.0){ // lower jaw: open, then follow the head
+      vec3 hinge = vec3(0.0, -0.238, -1.125);
+      float a = 0.14 + 0.07 * (0.5 + 0.5 * sin(t * 1.1)) + 0.22 * lunge(t);
+      p = rotX(p - hinge, a) + hinge; n = rotX(n, a);
+      p = headX(p, 1.0, t); n = headN(n, 1.0, t);
+    } else if (g == 1.0 || g == 2.0){
+      p = headX(p, 1.0, t); n = headN(n, 1.0, t);
+      if (g == 2.0) e = 1.0 + 0.7 * (0.5 + 0.5 * sin(t * 2.0)) + lunge(t);
+    } else if (g == 6.0){
+      float w = m.y * m.y;
+      p = headX(p, w, t); n = headN(n, w, t);
+    } else if (g == 9.0){
+      p.y += sin(t * 0.8 + sign(p.x)) * 0.025 * smoothstep(-0.4, 0.9, p.y);
+    } else if (g == 10.0){ // fingers tap/grip
+      float k = m.z;
+      float lift = max(0.0, sin(t * 0.9 + k * 1.7)) * 0.06 * m.y;
+      p.y += lift;
     } else if (g == 5.0){
-      float r = length((p.xz - vec2(0.1, 1.05)) * vec2(0.77, 1.0));
-      float wv = 0.5 + 0.5 * sin(r * 26.0 - t * 2.5);
-      c *= 0.82 + 0.3 * wv;
-      e = 0.45 + 0.35 * wv;
-    } else if (g == 7.0){
-      vec3 ctr = vec3(0.0, -0.3, -0.5);
-      p = ctr + (p - ctr) * (1.0 + 0.018 * sin(t * 1.4));
+      vec2 d = p.xz - vec2(0.05, 0.35);
+      float r = length(d);
+      float ang = atan(d.y, d.x);
+      float wv = 0.5 + 0.5 * sin(ang * 5.0 + t * 1.2) * sin(r * 20.0 - t * 2.0);
+      e *= 0.6 + 0.6 * wv;
+      c *= 0.8 + 0.35 * wv;
     }
   }
 `;
-const DRAGON_SOFT = /* glsl */`
+const DRAGON_SOFT = DRAGON_COMMON + /* glsl */`
   void animateSoft(inout vec3 p, inout vec3 c, inout float a, inout float s, vec3 m, float t){
-    if (m.x == 0.0){
-      p.y = mod(p.y + 1.2 + t * 0.1 * (0.5 + m.y), 3.8) - 1.2;
+    float g = m.x;
+    if (g == 0.0){
+      p.y = mod(p.y + 1.4 + t * 0.1 * (0.5 + m.y), 3.6) - 1.4;
       p.x += sin(t * 0.5 + m.z * 6.0) * 0.12;
       p.z += cos(t * 0.4 + m.z * 4.0) * 0.12;
       a *= 0.25 + 0.75 * pow(0.5 + 0.5 * sin(t * (1.2 + m.y * 2.0) + m.z * 20.0), 4.0);
-    } else if (m.x == 1.0){
-      float f = fract(t * 0.25 + m.y);
-      vec3 dir = normalize(vec3(sin(t * 0.43) * 0.25, -0.38, 1.0));
+    } else if (g == 1.0){ // torch flame
+      float f = fract(t * 1.6 + m.y);
+      vec3 j = vec3(hash(m.z) - 0.5, 0.0, hash(m.z + 1.7) - 0.5);
+      p += j * 0.07 * (1.0 - f) + vec3(sin(t * 7.0 + m.z) * 0.01, f * 0.16, 0.0);
+      s *= 1.0 - f * 0.6;
+      c = mix(vec3(1.0, 0.85, 0.5), vec3(0.9, 0.35, 0.1), f);
+      a *= (1.0 - f);
+    } else if (g == 4.0){ // embers
+      float f = fract(t * 0.3 + m.y);
+      p += vec3(sin(t + m.z * 4.0) * 0.12 * f, f * 1.1, cos(t * 0.7 + m.z * 3.0) * 0.12 * f);
+      a *= (1.0 - f) * step(0.5, hash(m.z + floor(t * 0.3 + m.y)));
+    } else if (g == 3.0){ // breath
+      float f = fract(t * 0.22 + m.y);
       vec3 j = vec3(hash(m.z) - 0.5, hash(m.z + 1.3) - 0.5, hash(m.z + 2.7) - 0.5);
-      p += dir * f * 1.3 + j * f * 0.9;
+      p += vec3(0.0, -0.25, 0.9) * f + j * f * 0.7;
+      p = headX(p, 1.0 - f, t);
       s *= 1.0 + f * 2.5;
-      a *= sin(f * 3.14159) * (0.35 + 0.65 * smoothstep(-0.2, 0.8, sin(t * 0.6 - f * 2.0)));
-    } else {
+      a *= sin(f * 3.14159);
+    } else { // rune motes
       float f = fract(t * 0.18 + m.y);
-      p.y += f * 1.3;
+      p.y += f * 1.0;
       p.x += sin(t + m.z * 5.0) * 0.05 * f;
       a *= (1.0 - f) * smoothstep(0.0, 0.1, f);
     }
@@ -505,16 +578,17 @@ const SQUID_SOFT = /* glsl */`
 
 export const SCENES = {
   dragon: {
-    title: { zh: '冰龙', en: 'Ice Dragon' },
+    title: { zh: '冰霜骨龙', en: 'Frost Bone Dragon' },
     build: buildDragon,
     solidAnim: DRAGON_SOLID, softAnim: DRAGON_SOFT,
-    background: '#04060c',
-    camera: [1.7, 1.0, 7.4], target: [0, 0.3, 0], fov: 36,
-    light: [-0.5, 0.75, 0.55], lightColor: [0.78, 0.84, 0.95], ambient: [0.2, 0.24, 0.34], rim: [0.18, 0.3, 0.5],
-    palette: ['#04060c', '#0a1020', '#111a30', '#1a2742', '#243556', '#2f466c', '#3d5a85', '#4f71a0', '#6689ba', '#84a6d2',
-      '#a6c4e8', '#c8def5', '#eef6ff', '#8fe3ff', '#5fb8f0', '#ff9a3c', '#ffd27a', '#8a4420'],
-    dither: 0.085,
-    autoRotateSpeed: 0.55,
+    background: '#04070c',
+    camera: [-4.7, 1.5, 3.1], target: [0, -0.1, -0.5], fov: 38,
+    light: [0.2, 0.9, 0.55], lightColor: [0.95, 1.0, 1.05], ambient: [0.13, 0.17, 0.24], rim: [0.12, 0.22, 0.34],
+    palette: ['#04070c', '#08101a', '#0e1a28', '#152638', '#1e344a', '#29445c', '#36566f', '#476b84', '#5d849b', '#7aa0b4',
+      '#9bbccb', '#bdd7e0', '#dcecf0', '#f4fbfc', '#ffd890', '#f0a050', '#c0602a', '#7a3418', '#2a1408'],
+    dither: 0.08,
+    autoRotateSpeed: 0.45, swayRange: 0.85,
+    minDistance: 3, maxDistance: 9,
   },
   squid: {
     title: { zh: '雨中的乌贼', en: 'Squid in the Rain' },

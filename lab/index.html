@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pixel Splats · Giorno Marino</title>
-<meta name="description" content="Giorno Marino 的实时 3D 像素高斯泼溅小实验：冰龙、雨中的乌贼。可以拖动旋转。">
+<meta name="description" content="Giorno Marino 的实时 3D 像素高斯泼溅小实验：冰霜骨龙、雨中的乌贼。可以拖动旋转。">
 <link rel="canonical" href="https://giornomarino.github.io/lab/">
 <link rel="icon" type="image/png" href="../assets/pixel-pet.png">
 <meta property="og:title" content="Pixel Splats · Giorno Marino">
@@ -64,7 +64,9 @@ function show(name){
   const fresh = canvas.cloneNode(false);
   canvas.replaceWith(fresh); canvas = fresh;
   try {
-    view = mount(canvas, name, { zoom: true, pixelHeight: 240 });
+    const q = new URLSearchParams(location.search);
+    const cam = q.get('cam') ? q.get('cam').split(',').map(Number) : undefined;
+    view = mount(canvas, name, { zoom: true, pixelHeight: 240, camera: cam, still: q.has('still') });
   } catch (e) {
     console.error(e);
     document.getElementById('err').style.display = 'grid';

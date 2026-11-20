@@ -183,7 +183,7 @@ export function mount(canvas, name, opts = {}){
   }
 
   const camera = new THREE.PerspectiveCamera(def.fov || 35, 1, 0.1, 100);
-  camera.position.set(...def.camera);
+  camera.position.set(...(opts.camera || def.camera));
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(...def.target);
   controls.enableDamping = true;
@@ -194,14 +194,15 @@ export function mount(canvas, name, opts = {}){
   controls.maxDistance = def.maxDistance || 10;
   controls.minPolarAngle = 0.35;
   controls.maxPolarAngle = 1.75;
-  controls.autoRotate = !reduced;
+  controls.autoRotate = !reduced && !opts.still;
   controls.autoRotateSpeed = def.autoRotateSpeed || 0.6;
   controls.rotateSpeed = 0.6;
   controls.update();
+  const az0 = controls.getAzimuthalAngle();
   // Pause the auto-rotation briefly while the user is dragging.
   let resumeTimer = 0;
   controls.addEventListener('start', () => { controls.autoRotate = false; clearTimeout(resumeTimer); });
-  controls.addEventListener('end', () => { if (!reduced) resumeTimer = setTimeout(() => controls.autoRotate = true, 2500); });
+  controls.addEventListener('end', () => { if (!reduced && !opts.still) resumeTimer = setTimeout(() => controls.autoRotate = true, 2500); });
 
   const rt = new THREE.WebGLRenderTarget(1, 1, {
     minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true,
@@ -255,6 +256,11 @@ export function mount(canvas, name, opts = {}){
   document.addEventListener('visibilitychange', onVis);
 
   function draw(){
+    if (def.swayRange){ // ping-pong around the starting angle instead of a full turn
+      const az = controls.getAzimuthalAngle(), sp = Math.abs(controls.autoRotateSpeed);
+      if (az > az0 + def.swayRange) controls.autoRotateSpeed = sp;
+      else if (az < az0 - def.swayRange) controls.autoRotateSpeed = -sp;
+    }
     controls.update();
     uniforms.uTime.value = t;
     renderer.setRenderTarget(rt);
