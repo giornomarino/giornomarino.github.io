@@ -91,6 +91,23 @@ h2.sec{font-size:13px;color:var(--muted);margin:0 0 14px;text-transform:uppercas
 .card-links a{color:var(--accent);text-decoration:none}
 .card-links a:hover{text-decoration:underline}
 
+.lab{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.splat{
+  position:relative;margin:0;aspect-ratio:4/3.4;border-radius:16px;overflow:hidden;
+  background:#04060c;border:1px solid var(--line);
+}
+.splat canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
+.splat canvas:active{cursor:grabbing}
+.splat figcaption{
+  position:absolute;left:12px;bottom:10px;right:12px;display:flex;justify-content:space-between;align-items:flex-end;gap:8px;
+  color:#c8d4e8;font-size:12.5px;pointer-events:none;text-shadow:0 1px 2px #000;
+}
+.splat figcaption b{display:block;font-size:13px;font-weight:400}
+.splat figcaption a{pointer-events:auto;color:#c8d4e8;text-decoration:none;border:1px solid rgba(200,212,232,.25);border-radius:8px;padding:2px 8px;background:rgba(4,6,12,.6)}
+.splat figcaption a:hover{border-color:rgba(200,212,232,.6)}
+.splat .nogl{position:absolute;inset:0;display:none;place-items:center;color:#8a96aa;font-size:13px;padding:16px;text-align:center}
+.lab-note{font-size:13px;color:var(--muted);margin:10px 2px 0}
+
 footer{padding:56px 0 40px;color:var(--muted);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 
 [data-lang="en"] .zh, [data-lang="zh"] .en{display:none}
@@ -99,6 +116,7 @@ footer{padding:56px 0 40px;color:var(--muted);font-size:13px;display:flex;justif
   .hero{grid-template-columns:1fr;gap:18px;padding:28px 0 40px}
   .avatar{width:96px;height:96px;border-radius:20px}
   .grid{grid-template-columns:1fr}
+  .lab{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -228,6 +246,28 @@ footer{padding:56px 0 40px;color:var(--muted);font-size:13px;display:flex;justif
       </article>
 
     </div>
+
+    <h2 class="sec pixel" id="lab" style="margin-top:44px">Lab</h2>
+    <div class="lab" id="lab-grid">
+      <figure class="splat" data-scene="dragon">
+        <canvas aria-label="3D pixel-art ice dragon"></canvas>
+        <div class="nogl"><span class="zh">需要 WebGL 2 才能显示</span><span class="en">Needs WebGL 2</span></div>
+        <figcaption>
+          <span class="pixel"><b class="zh">冰龙</b><b class="en">Ice Dragon</b></span>
+          <a href="lab/#dragon"><span class="zh">全屏</span><span class="en">Fullscreen</span> ⤢</a>
+        </figcaption>
+      </figure>
+      <figure class="splat" data-scene="squid">
+        <canvas aria-label="3D pixel-art squid in the rain"></canvas>
+        <div class="nogl"><span class="zh">需要 WebGL 2 才能显示</span><span class="en">Needs WebGL 2</span></div>
+        <figcaption>
+          <span class="pixel"><b class="zh">雨中的乌贼</b><b class="en">Squid in the Rain</b></span>
+          <a href="lab/#squid"><span class="zh">全屏</span><span class="en">Fullscreen</span> ⤢</a>
+        </figcaption>
+      </figure>
+    </div>
+    <p class="lab-note zh">实时渲染的像素风高斯泼溅：几万个小点拼出模型，再降采样、抖动成像素画。可以拖动旋转。</p>
+    <p class="lab-note en">Real-time pixel-art gaussian splats: tens of thousands of points, rendered at low resolution and dithered into pixel art. Drag to spin them.</p>
   </main>
 
   <footer>
@@ -258,6 +298,24 @@ footer{padding:56px 0 40px;color:var(--muted);font-size:13px;display:flex;justif
     theme=dark?'light':'dark';root.setAttribute('data-theme',theme);set('theme',theme);
   };
   document.getElementById('y').textContent=new Date().getFullYear();
+})();
+</script>
+<script type="module">
+(function(){
+  var grid=document.getElementById('lab-grid');
+  if(!grid)return;
+  var started=false;
+  function start(){
+    if(started)return;started=true;
+    import('./assets/splats/splat.js').then(function(m){
+      grid.querySelectorAll('.splat').forEach(function(fig){
+        try{ m.mount(fig.querySelector('canvas'), fig.dataset.scene, { zoom:false, pixelHeight:170 }); }
+        catch(e){ console.error(e); fig.querySelector('.nogl').style.display='grid'; }
+      });
+    }).catch(function(e){ console.error(e); });
+  }
+  var io=new IntersectionObserver(function(es){ if(es.some(function(e){return e.isIntersecting})){ io.disconnect(); start(); } },{rootMargin:'300px'});
+  io.observe(grid);
 })();
 </script>
 </body>
