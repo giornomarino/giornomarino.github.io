@@ -106,6 +106,11 @@ h2.sec{font-size:13px;color:var(--muted);margin:0 0 14px;text-transform:uppercas
 .splat figcaption a{pointer-events:auto;color:#c8d4e8;text-decoration:none;border:1px solid rgba(200,212,232,.25);border-radius:8px;padding:2px 8px;background:rgba(4,6,12,.6)}
 .splat figcaption a:hover{border-color:rgba(200,212,232,.6)}
 .splat .nogl{position:absolute;inset:0;display:none;place-items:center;color:#8a96aa;font-size:13px;padding:16px;text-align:center}
+.splat.thumb{display:block;text-decoration:none}
+.splat.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;transition:transform .4s ease}
+.splat.thumb:hover img{transform:scale(1.03)}
+.splat .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(4,6,12,.55);border:1px solid rgba(200,212,232,.35);display:grid;place-items:center;color:#e6eef7;font-size:18px;opacity:.85;transition:opacity .2s}
+.splat.thumb:hover .play{opacity:1}
 .lab-note{font-size:13px;color:var(--muted);margin:10px 2px 0}
 
 footer{padding:56px 0 40px;color:var(--muted);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
@@ -265,9 +270,25 @@ footer{padding:56px 0 40px;color:var(--muted);font-size:13px;display:flex;justif
           <a href="lab/#squid"><span class="zh">全屏</span><span class="en">Fullscreen</span> ⤢</a>
         </figcaption>
       </figure>
+      <a class="splat thumb" href="lab/ink/#slime">
+        <img src="assets/ink-slime.webp" alt="" loading="lazy" width="900" height="765">
+        <span class="play" aria-hidden="true">▶</span>
+        <figcaption>
+          <span class="pixel"><b class="zh">幽光史莱姆祭坛</b><b class="en">Luminous Slime Shrine</b></span>
+          <span class="zh">点击进入 · 可以戳史莱姆</span><span class="en">Open · poke the slime</span>
+        </figcaption>
+      </a>
+      <a class="splat thumb" href="lab/ink/#island">
+        <img src="assets/ink-island.webp" alt="" loading="lazy" width="900" height="765">
+        <span class="play" aria-hidden="true">▶</span>
+        <figcaption>
+          <span class="pixel"><b class="zh">熔火符文浮岛</b><b class="en">Ember Rune Island</b></span>
+          <span class="zh">点击进入</span><span class="en">Open</span>
+        </figcaption>
+      </a>
     </div>
-    <p class="lab-note zh">实时渲染的像素风高斯泼溅：几万个小点拼出模型，再降采样、抖动成像素画。可以拖动旋转。</p>
-    <p class="lab-note en">Real-time pixel-art gaussian splats: tens of thousands of points, rendered at low resolution and dithered into pixel art. Drag to spin them.</p>
+    <p class="lab-note zh">实时渲染的像素风高斯泼溅：几万个小点拼出模型，再降采样、抖动成像素画。上面两个可以直接拖动旋转，下面两个点进去看。</p>
+    <p class="lab-note en">Real-time pixel-art gaussian splats: tens of thousands of points, rendered at low resolution and dithered into pixel art. Drag the top two to spin them; open the bottom two.</p>
   </main>
 
   <footer>
