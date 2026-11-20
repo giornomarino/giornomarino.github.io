@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lab · Giorno Marino</title>
-<meta name="description" content="Giorno Marino 的像素风 3D 高斯泼溅实验室：大白鲨、雨中的乌贼、幽光史莱姆祭坛、熔火符文浮岛。">
+<meta name="description" content="Giorno Marino 的 3D 实验室：恶龙凝视宝石熔火浮岛、大白鲨、雨中的乌贼、幽光史莱姆祭坛、熔火符文浮岛。">
 <link rel="canonical" href="https://giornomarino.github.io/lab/">
 <link rel="icon" type="image/png" href="../assets/pixel-pet.png">
 <meta property="og:type" content="website">
@@ -57,6 +57,8 @@ header.top{display:flex;justify-content:space-between;align-items:center;padding
 .card:hover .thumb img{transform:scale(1.04)}
 .tag{position:absolute;left:12px;top:12px;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(7,8,20,.7);border:1px solid var(--line);color:var(--muted)}
 .body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:6px}
+.card.wide{grid-column:1/-1}
+.card.wide .thumb{aspect-ratio:2/1}
 .body h2{margin:0;font-size:19px;font-weight:600}
 .body p{margin:0;font-size:14px;color:var(--muted)}
 .go{margin-top:6px;font-size:14px;color:var(--accent)}
@@ -68,7 +70,7 @@ header.top{display:flex;justify-content:space-between;align-items:center;padding
 footer{padding:36px 0 40px;color:var(--muted);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 
 [data-lang="en"] .zh,[data-lang="zh"] .en{display:none}
-@media (max-width:680px){.grid{grid-template-columns:1fr}.hero{min-height:52vh}}
+@media (max-width:680px){.grid{grid-template-columns:1fr}.hero{min-height:52vh}.card.wide .thumb{aspect-ratio:4/3}}
 </style>
 </head>
 <body>
@@ -93,6 +95,15 @@ footer{padding:36px 0 40px;color:var(--muted);font-size:13px;display:flex;justif
   </section>
 
   <main class="grid">
+    <a class="card wide" href="dragon-isle/">
+      <div class="thumb"><img src="../assets/lab-dragon-isle.webp" alt="" loading="lazy" width="1400" height="700"><span class="tag">three.js · GLB</span></div>
+      <div class="body">
+        <h2 class="pixel"><span class="zh">恶龙凝视宝石熔火浮岛</span><span class="en">The Dragon and the Gem</span></h2>
+        <p class="zh">骷髅恶龙盘踞在熔火浮岛上，凝视着宝箱里发光的宝石；熔岩余烬、宝石能量和霜雾粒子环绕，带辉光后期。</p>
+        <p class="en">A skeletal dragon coiled on a molten floating isle, staring at a glowing gem in a chest — lava embers, gem sparks and frost mist, with bloom.</p>
+        <span class="go"><span class="zh">进入</span><span class="en">Open</span> →</span>
+      </div>
+    </a>
     <a class="card" href="view/#shark">
       <div class="thumb"><img src="../assets/lab-shark.webp" alt="" loading="lazy" width="900" height="765"><span class="tag">three.js</span></div>
       <div class="body">

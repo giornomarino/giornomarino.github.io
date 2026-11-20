@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>恶龙凝视宝石熔火浮岛 · Giorno Marino Lab</title>
+<meta name="description" content="Giorno Marino 的 3D 作品：骷髅恶龙盘踞在熔火浮岛上，凝视发光的宝石。可以拖动旋转。">
+<link rel="canonical" href="https://giornomarino.github.io/lab/dragon-isle/">
+<link rel="icon" type="image/png" href="../../assets/pixel-pet.png">
+<meta property="og:title" content="恶龙凝视宝石熔火浮岛 · Giorno Marino Lab">
+<meta property="og:url" content="https://giornomarino.github.io/lab/dragon-isle/">
+<meta property="og:image" content="https://giornomarino.github.io/assets/lab-dragon-isle.webp">
+<style>*{box-sizing:border-box;margin:0;padding:0}html,body,#app{width:100vw;height:100vh;overflow:hidden;background:#04060d;user-select:none;-webkit-user-select:none}canvas{display:block;width:100%;height:100%}
+body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:#cfd8ea}
+.hud{position:fixed;left:16px;top:16px;display:flex;gap:8px;align-items:center;pointer-events:none}
+.hud a,.hud span{pointer-events:auto;background:rgba(8,10,20,.7);border:1px solid rgba(150,170,220,.2);border-radius:10px;padding:6px 12px;text-decoration:none;color:inherit;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.hud a:hover{color:#fff;border-color:rgba(200,210,255,.45)}
+.hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);font-size:12px;opacity:.6;white-space:nowrap;background:rgba(8,10,20,.6);padding:5px 12px;border-radius:10px}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:#04060d;transition:opacity .6s}
+#loading.gone{opacity:0;pointer-events:none}
+#loading .box{width:min(260px,70vw);text-align:center}
+#loading .track{height:4px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:10px}
+#bar{height:100%;width:0;background:linear-gradient(90deg,#ff2ea8,#ff9c38);transition:width .15s}
+</style>
+<script type="importmap">{"imports":{"three":"../../assets/vendor/three.module.min.js","three/addons/":"../../assets/vendor/three-addons/"}}</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="hud"><a href="../">← Lab</a><span>恶龙凝视宝石熔火浮岛</span></div>
+<div class="hint">拖动旋转 · 滚轮缩放 · 双击复位</div>
+<div id="loading"><div class="box"><p>正在唤醒恶龙…</p><div class="track"><div id="bar"></div></div></div></div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const DEFAULT_GLB = './3080fc3d3c164f244258cc96212c784a.glb';
+
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04060d);
+scene.fog = new THREE.FogExp2(0x050712, 0.048);
+
+const INIT_CAM = [4.2501, 4.1400, 1.4561];
+const INIT_TGT = [-0.0490, 0.2134, -0.0326];
+const INIT_ROT_Y = 18.9437;
+const INIT_BLOOM = 0.400;
+const INIT_EMISSIVE = 0.000;
+const INIT_LIGHT = 0.400;
+const INIT_FX = 0.700;
+const floatOn = true, ringsOn = false, beamOn = false, autoRotate = false;
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(INIT_CAM[0], INIT_CAM[1], INIT_CAM[2]);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2.2;
+controls.maxDistance = 13.0;
+controls.target.set(INIT_TGT[0], INIT_TGT[1], INIT_TGT[2]);
+
+// Post-processing: HDR UnrealBloomPass
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  INIT_BLOOM, // strength
+  0.55,       // radius
+  0.72        // threshold
+);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+// ---------- Lighting Setup ----------
+const hemiLight = new THREE.HemisphereLight(0x88b4e8, 0x26120c, 0.72);
+scene.add(hemiLight);
+
+const moonLight = new THREE.DirectionalLight(0xcbe2ff, 1.85);
+moonLight.position.set(-4.5, 6.5, 4.0);
+scene.add(moonLight);
+
+const rimLight = new THREE.DirectionalLight(0x5ea6ff, 1.05);
+rimLight.position.set(4.5, 3.0, -5.0);
+scene.add(rimLight);
+
+// Master floating group (model + gem-locked FX bob together!)
+const rootGroup = new THREE.Group();
+rootGroup.rotation.y = INIT_ROT_Y;
+scene.add(rootGroup);
+
+// Dynamic pulsing Magenta Gem PointLight
+const gemCenter = new THREE.Vector3(0.02, 0.22, 0.14);
+const gemLight = new THREE.PointLight(0xff2ea8, 6.5, 5.5, 1.6);
+gemLight.position.copy(gemCenter);
+rootGroup.add(gemLight);
+
+// Dynamic flickering Molten Lava Under-Light + Torch Light
+const lavaLight = new THREE.PointLight(0xff6218, 5.5, 6.0, 1.5);
+lavaLight.position.set(0.0, -1.35, 0.35);
+rootGroup.add(lavaLight);
+
+const torchLight = new THREE.PointLight(0xff9c38, 3.2, 3.8, 1.8);
+torchLight.position.set(0.85, 0.15, 0.35);
+rootGroup.add(torchLight);
+
+// ---------- VFX 1: Dual Counter-Rotating Glowing Magenta Arcane Rings ----------
+const ringsGroup = new THREE.Group();
+ringsGroup.position.copy(gemCenter);
+ringsGroup.visible = ringsOn;
+rootGroup.add(ringsGroup);
+
+function makeRuneRing(radius, tube, color, segments, dashEvery) {
+  const g = new THREE.Group();
+  const mainGeo = new THREE.TorusGeometry(radius, tube, 12, 96);
+  const mainMat = new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity: 0.78, blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const ring = new THREE.Mesh(mainGeo, mainMat);
+  ring.rotation.x = Math.PI / 2;
+  g.add(ring);
+
+  // Glowing arcane rune diamonds along the ring
+  const nodeGeo = new THREE.OctahedronGeometry(tube * 2.7, 0);
+  const nodeMat = new THREE.MeshBasicMaterial({
+    color: 0xffb8ec, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  for (let i = 0; i < segments; i++) {
+    if (i % dashEvery !== 0) continue;
+    const a = (i / segments) * Math.PI * 2;
+    const m = new THREE.Mesh(nodeGeo, nodeMat);
+    m.position.set(Math.cos(a) * radius, 0, Math.sin(a) * radius);
+    g.add(m);
+  }
+  return g;
+}
+
+const innerRing = makeRuneRing(0.42, 0.009, 0xff45ba, 24, 3);
+innerRing.rotation.z = 0.24;
+ringsGroup.add(innerRing);
+
+const outerRing = makeRuneRing(0.64, 0.007, 0xb85cff, 32, 4);
+outerRing.rotation.x = -0.30;
+ringsGroup.add(outerRing);
+
+// ---------- VFX 2: Soft Vertical Magenta Gem Energy Beam ----------
+const beamGeo = new THREE.CylinderGeometry(0.06, 0.22, 1.55, 24, 1, true);
+const beamMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+  uniforms: { uTime: { value: 0 }, uOpacity: { value: 0.42 } },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    varying vec2 vUv;
+    uniform float uTime;
+    uniform float uOpacity;
+    void main() {
+      float fadeY = smoothstep(0.0, 0.22, vUv.y) * smoothstep(1.0, 0.15, vUv.y);
+      float streak = 0.65 + 0.35 * sin(vUv.x * 18.849 - uTime * 2.6 + vUv.y * 8.0);
+      vec3 col = mix(vec3(1.0, 0.18, 0.72), vec3(0.75, 0.45, 1.0), vUv.y);
+      gl_FragColor = vec4(col * 1.4, fadeY * streak * uOpacity);
+    }`
+});
+const gemBeam = new THREE.Mesh(beamGeo, beamMat);
+gemBeam.position.set(gemCenter.x, gemCenter.y + 0.55, gemCenter.z);
+gemBeam.visible = beamOn;
+rootGroup.add(gemBeam);
+
+// ---------- VFX 3: GPU Animated 3D Particles (Lava Embers + Gem Vortex + Frost Mist) ----------
+const P_COUNT = 720;
+const pPos = new Float32Array(P_COUNT * 3);
+const pCol = new Float32Array(P_COUNT * 3);
+const pMeta = new Float32Array(P_COUNT * 4); // [type, phase, speed, radius]
+
+for (let i = 0; i < P_COUNT; i++) {
+  const i3 = i * 3, i4 = i * 4;
+  if (i < 340) {
+    // Type 0: Rising Molten Lava Embers
+    const a = Math.random() * Math.PI * 2;
+    const r = 0.25 + Math.random() * 1.55;
+    pPos[i3] = Math.cos(a) * r;
+    pPos[i3+1] = -2.0 + Math.random() * 3.8;
+    pPos[i3+2] = Math.sin(a) * r;
+    const hot = Math.random() > 0.4;
+    pCol[i3] = 1.0; pCol[i3+1] = hot ? 0.78 : 0.38; pCol[i3+2] = hot ? 0.22 : 0.06;
+    pMeta[i4] = 0; pMeta[i4+1] = Math.random(); pMeta[i4+2] = 0.16 + Math.random() * 0.18; pMeta[i4+3] = r;
+  } else if (i < 520) {
+    // Type 1: Spiraling Magenta Gem Energy Sparks
+    const a = Math.random() * Math.PI * 2;
+    const r = 0.12 + Math.random() * 0.34;
+    pPos[i3] = a; pPos[i3+1] = 0; pPos[i3+2] = (Math.random() > 0.5 ? 1 : -1);
+    pCol[i3] = 1.0; pCol[i3+1] = 0.32 + Math.random() * 0.4; pCol[i3+2] = 0.92;
+    pMeta[i4] = 1; pMeta[i4+1] = Math.random(); pMeta[i4+2] = 0.22 + Math.random() * 0.22; pMeta[i4+3] = r;
+  } else {
+    // Type 2: Frostbone Ice Mist & Cold Dragon Breath
+    const a = Math.random() * Math.PI * 2;
+    const r = 0.65 + Math.random() * 1.1;
+    pPos[i3] = a; pPos[i3+1] = 0.4 + Math.random() * 1.3; pPos[i3+2] = Math.random();
+    pCol[i3] = 0.55; pCol[i3+1] = 0.88; pCol[i3+2] = 1.0;
+    pMeta[i4] = 2; pMeta[i4+1] = Math.random(); pMeta[i4+2] = 0.12 + Math.random() * 0.14; pMeta[i4+3] = r;
+  }
+}
+
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+pGeo.setAttribute('aMeta', new THREE.BufferAttribute(pMeta, 4));
+
+const pMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
+  uniforms: {
+    uTime: { value: 0 },
+    uFx: { value: INIT_FX },
+    uGemC: { value: gemCenter.clone() },
+    uPixelRatio: { value: renderer.getPixelRatio() }
+  },
+  vertexShader: `
+    attribute vec4 aMeta;
+    varying vec3 vColor;
+    varying float vAlpha;
+    uniform float uTime;
+    uniform float uFx;
+    uniform vec3 uGemC;
+    uniform float uPixelRatio;
+
+    void main() {
+      float kind = aMeta.x;
+      float ph = aMeta.y;
+      float sp = aMeta.z;
+      float rad = aMeta.w;
+      vec3 p = position;
+      float t = fract(uTime * sp + ph);
+      float alpha = sin(t * 3.14159);
+      float sz = 24.0;
+
+      if (kind < 0.5) {
+        // Rising lava embers
+        p.y = -2.1 + t * 4.2;
+        p.x += sin(uTime * 1.5 + ph * 12.0) * 0.22;
+        p.z += cos(uTime * 1.2 + ph * 10.0) * 0.22;
+        sz = mix(28.0, 12.0, t);
+      } else if (kind < 1.5) {
+        // Spiraling magenta gem sparks
+        float ang = position.x + t * 6.28318 * position.z + uTime * 0.9;
+        float r = rad * (1.0 - 0.5 * t);
+        p = uGemC + vec3(cos(ang) * r, -0.05 + t * 1.15, sin(ang) * r);
+        sz = 26.0 * alpha;
+      } else {
+        // Swirling frostbone ice mist
+        float ang = position.x + uTime * 0.28;
+        p = vec3(cos(ang) * rad, position.y - t * 0.45, sin(ang) * rad);
+        sz = 22.0;
+        alpha *= 0.65;
+      }
+
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = (sz * uFx * uPixelRatio) / max(1.0, -mv.z);
+      vColor = color;
+      vAlpha = alpha * min(1.5, uFx);
+    }`,
+  fragmentShader: `
+    varying vec3 vColor;
+    varying float vAlpha;
+    void main() {
+      vec2 uv = gl_PointCoord * 2.0 - 1.0;
+      float d = dot(uv, uv);
+      if (d > 1.0) discard;
+      float core = exp(-d * 3.8);
+      gl_FragColor = vec4(vColor * (1.4 + core * 0.9), core * vAlpha);
+    }`
+});
+const particles = new THREE.Points(pGeo, pMat);
+rootGroup.add(particles);
+
+// ---------- Shader Uniforms injected directly into the GLB PBR Material ----------
+const glbUniforms = {
+  uTime: { value: 0 },
+  uEmissiveBoost: { value: INIT_EMISSIVE }
+};
+
+let currentModel = null;
+let loadedGlbBlob = null;
+let loadedGlbName = "dragon_island.glb";
+const loader = new GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder);
+
+function mountGLB(gltf, label) {
+  if (currentModel) {
+    rootGroup.remove(currentModel);
+    currentModel.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(m => m.dispose());
+      }
+    });
+  }
+
+  const model = gltf.scene;
+  // Auto-center and normalize scale to 4.2 units so camera & VFX align cleanly
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  const scale = 4.2 / maxDim;
+  model.scale.setScalar(scale);
+  model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+
+  let triCount = 0;
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    if (obj.geometry.index) triCount += obj.geometry.index.count / 3;
+    else if (obj.geometry.attributes.position) triCount += obj.geometry.attributes.position.count / 3;
+
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      mat.side = THREE.DoubleSide;
+      // Inject animated HDR emissive lava wave + pulsing magenta gem glow right into the PBR shader!
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = glbUniforms.uTime;
+        shader.uniforms.uEmissiveBoost = glbUniforms.uEmissiveBoost;
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying vec3 vFxWorldPos;')
+          .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvFxWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uEmissiveBoost;\nvarying vec3 vFxWorldPos;')
+          .replace(
+            '#include <emissivemap_fragment>',
+            `#include <emissivemap_fragment>
+            // Auto-detect molten lava fissures, torch flames, amber eyes & radiant magenta gem from 4K baseColor!
+            vec3 baseC = diffuseColor.rgb;
+            float isLava = smoothstep(0.28, 0.50, baseC.r - baseC.b) * smoothstep(0.35, 0.65, baseC.r) * smoothstep(0.08, 0.25, baseC.g);
+            float isGem  = smoothstep(0.16, 0.34, baseC.r - baseC.g) * smoothstep(0.10, 0.24, baseC.b - baseC.g) * smoothstep(0.35, 0.60, baseC.r);
+            float lavaWave = 0.78 + 0.35 * sin(vFxWorldPos.y * 7.0 - uTime * 3.2 + vFxWorldPos.x * 4.0);
+            float gemBeat  = 0.85 + 0.28 * sin(uTime * 3.4 + vFxWorldPos.y * 5.0);
+            totalEmissiveRadiance += baseC * isLava * (1.85 * lavaWave * uEmissiveBoost);
+            totalEmissiveRadiance += baseC * isGem  * (2.15 * gemBeat  * uEmissiveBoost);`
+          );
+      };
+      mat.needsUpdate = true;
+    });
+  });
+
+  currentModel = model;
+  rootGroup.add(model);
+  
+}
+
+let lightMul = INIT_LIGHT;
+renderer.domElement.addEventListener('dblclick', () => {
+  camera.position.set(INIT_CAM[0], INIT_CAM[1], INIT_CAM[2]);
+  controls.target.set(INIT_TGT[0], INIT_TGT[1], INIT_TGT[2]);
+  rootGroup.rotation.y = INIT_ROT_Y;
+  controls.update();
+});
+
+// The model is a separate, compressed file (meshopt geometry + WebP textures) loaded with a progress bar.
+const bar = document.getElementById('bar'), loadEl = document.getElementById('loading');
+loader.load('model.glb', (gltf) => {
+  mountGLB(gltf, 'model.glb');
+  loadEl.classList.add('gone');
+}, (e) => {
+  if (e.total) bar.style.width = (100 * e.loaded / e.total).toFixed(0) + '%';
+}, (err) => {
+  console.error(err);
+  loadEl.querySelector('p').textContent = '模型加载失败，请刷新重试 · Failed to load, please refresh';
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------- Render Loop ----------
+const clock = new THREE.Clock();
+let frames = 0, fpsAt = performance.now();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  glbUniforms.uTime.value = t;
+  pMat.uniforms.uTime.value = t;
+  beamMat.uniforms.uTime.value = t;
+
+  if (floatOn) {
+    rootGroup.position.y = Math.sin(t * 1.15) * 0.065;
+  } else {
+    rootGroup.position.y = 0;
+  }
+  if (autoRotate) {
+    rootGroup.rotation.y += dt * 0.28;
+  }
+
+  // Animate arcane magic rings
+  innerRing.rotation.y = t * 0.95;
+  outerRing.rotation.y = -t * 0.58;
+  const ringScale = 1.0 + 0.035 * Math.sin(t * 3.0);
+  ringsGroup.scale.setScalar(ringScale);
+
+  // Pulse dynamic lights
+  const gemPulse = 0.82 + 0.22 * Math.sin(t * 3.4);
+  const flick = 0.86 + 0.14 * Math.sin(t * 13.0) * Math.cos(t * 5.7);
+  gemLight.intensity = 6.2 * gemPulse * lightMul;
+  lavaLight.intensity = 5.4 * flick * lightMul;
+  torchLight.intensity = 3.0 * flick * lightMul;
+  moonLight.intensity = 1.65 * lightMul;
+  rimLight.intensity = 0.95 * lightMul;
+
+  controls.update();
+  composer.render();
+
+  
+}
+animate();
+</script>
+</body>
+</html>
