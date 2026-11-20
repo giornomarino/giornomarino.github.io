@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pixel Splats · Giorno Marino</title>
-<meta name="description" content="Giorno Marino 的实时 3D 像素高斯泼溅小实验：冰霜骨龙、雨中的乌贼。可以拖动旋转。">
+<meta name="description" content="Giorno Marino 的实时 3D 像素高斯泼溅小实验：大白鲨、雨中的乌贼、冰霜骨龙。可以拖动旋转。">
 <link rel="canonical" href="https://giornomarino.github.io/lab/">
 <link rel="icon" type="image/png" href="../assets/pixel-pet.png">
 <meta property="og:title" content="Pixel Splats · Giorno Marino">
@@ -56,7 +56,7 @@ const lang = document.documentElement.getAttribute('data-lang');
 let current = null, view = null;
 
 function show(name){
-  if (!SCENES[name]) name = 'dragon';
+  if (!SCENES[name]) name = 'shark';
   if (name === current) return;
   current = name;
   if (view) view.dispose();
@@ -83,7 +83,7 @@ for (const [k, def] of Object.entries(SCENES)){
   b.onclick = () => show(k);
   box.appendChild(b);
 }
-show(location.hash.slice(1) || new URLSearchParams(location.search).get('s') || 'dragon');
+show(location.hash.slice(1) || new URLSearchParams(location.search).get('s') || 'shark');
 </script>
 </body>
 </html>

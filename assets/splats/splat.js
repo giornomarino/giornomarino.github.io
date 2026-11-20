@@ -34,6 +34,8 @@ const SOLID_VERT = (anim) => COMMON_VERT + /* glsl */`
   uniform vec3 uLightColor;
   uniform vec3 uAmbient;
   uniform vec3 uRim;
+  uniform vec3 uFogColor;
+  uniform vec3 uFog; // near, far, max
   ${anim}
   void main(){
     vec3 p = position; vec3 n = normal; vec3 c = col; float e = emit; float s = size;
@@ -50,6 +52,7 @@ const SOLID_VERT = (anim) => COMMON_VERT + /* glsl */`
     float rim = pow(1.0 - abs(dot(N, normalize(-mv.xyz))), 3.0);
     vec3 lit = c * (uAmbient + uLightColor * (diff * 0.75 + wrap * 0.25)) + uRim * rim * (0.4 + c);
     vColor = mix(lit, c * 1.25, clamp(e, 0.0, 1.0)) + c * max(e - 1.0, 0.0);
+    vColor = mix(vColor, uFogColor, clamp((-mv.z - uFog.x) / (uFog.y - uFog.x), 0.0, 1.0) * uFog.z);
     vAlpha = 1.0;
   }
 `;
@@ -164,6 +167,8 @@ export function mount(canvas, name, opts = {}){
     uLightColor: { value: new THREE.Vector3(...def.lightColor) },
     uAmbient: { value: new THREE.Vector3(...def.ambient) },
     uRim: { value: new THREE.Vector3(...def.rim) },
+    uFogColor: { value: new THREE.Vector3(...(def.fogColor || [0, 0, 0])) },
+    uFog: { value: new THREE.Vector3(...(def.fog || [1, 2, 0])) },
   };
 
   const solidMat = new THREE.ShaderMaterial({

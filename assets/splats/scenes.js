@@ -576,7 +576,314 @@ const SQUID_SOFT = /* glsl */`
   }
 `;
 
+/* ---------- Scene: great white shark circling a reef ---------- */
+function buildShark(){
+  const R = rng(5);
+  const S = new Cloud(R);
+  const up = new THREE.Vector3(0, 1, 0);
+  const groundH = (x, z) => -1.4 + (fbm(x * 0.9 + 2, 0, z * 0.9) - 0.5) * 0.4 + 0.025 * Math.sin(x * 9 + z * 4 + vnoise(x * 2, 0, z * 2) * 4);
+  const gN = (x, z) => { const e = 0.03; return new THREE.Vector3(groundH(x - e, z) - groundH(x + e, z), 2 * e, groundH(x, z - e) - groundH(x, z + e)).normalize(); };
+  const RAD = 2.9;
+  const edge = (th) => RAD * (0.9 + 0.1 * vnoise(Math.cos(th) * 2 + 1, Math.sin(th) * 2, 3));
+
+  /* ---- seabed ---- */
+  const sand = (p) => {
+    const v = fbm(p.x * 2.2, 1, p.z * 2.2);
+    let c = mix3([0.26, 0.35, 0.37], [0.52, 0.57, 0.5], clamp01(v * 1.5 - 0.15));
+    const h = hash3(p.x * 70, 0, p.z * 70);
+    if (h > 0.98) c = [0.78, 0.8, 0.72];
+    return c;
+  };
+  for (let i = 0; i < 42000; i++){
+    const th = R() * Math.PI * 2, r = RAD * Math.sqrt(R());
+    if (r > edge(th)) continue;
+    const x = r * Math.cos(th), z = r * Math.sin(th);
+    const pos = new THREE.Vector3(x, groundH(x, z), z);
+    S.push(pos, gN(x, z), sand(pos), 0.08, { g: 6 });
+  }
+  for (let i = 0; i < 9000; i++){ // rocky underside
+    const th = R() * Math.PI * 2, d = Math.pow(R(), 0.85);
+    const er = edge(th) * Math.cos(d * 1.25) * (0.94 + 0.12 * vnoise(th * 5, d * 5, 2));
+    const x = er * Math.cos(th), z = er * Math.sin(th);
+    const pos = new THREE.Vector3(x, groundH(edge(th) * Math.cos(th) * 0.98, edge(th) * Math.sin(th) * 0.98) - Math.sin(d * 1.25) * 1.1, z);
+    const nor = new THREE.Vector3(Math.cos(th) * Math.cos(d * 1.25), -Math.sin(d * 1.25), Math.sin(th) * Math.cos(d * 1.25));
+    const v = fbm(pos.x * 3, pos.y * 3, pos.z * 3);
+    S.push(pos, nor, mix3([0.04, 0.09, 0.13], [0.22, 0.3, 0.34], clamp01(v * 1.5 - 0.2) * (1 - d * 0.7)), 0.085);
+  }
+  const rockCol = (p, n) => {
+    const v = fbm(p.x * 4 + 7, p.y * 4, p.z * 4);
+    let c = mix3([0.14, 0.2, 0.25], [0.38, 0.45, 0.48], clamp01(v * 1.5 - 0.2));
+    if (n.y > 0.6 && fbm(p.x * 8, p.y * 8, p.z * 8) > 0.6) c = mix3(c, [0.36, 0.55, 0.32], 0.7); // algae
+    return c;
+  };
+  const rocks = [[-0.7, -0.5, 0.65, 0.5], [-1.15, 0.05, 0.4, 0.35], [-0.25, -0.95, 0.38, 0.3], [1.0, -0.9, 0.55, 0.42], [1.5, -0.3, 0.32, 0.26],
+    [0.3, 1.3, 0.3, 0.22], [-1.7, 0.9, 0.45, 0.32], [1.9, 0.9, 0.3, 0.24], [-0.05, -1.75, 0.35, 0.28], [-2.0, -0.8, 0.28, 0.24]];
+  for (const [x, z, rw, rh] of rocks){
+    const g = groundH(x, z);
+    ellipsoid(S, { c: [x, g + rh * 0.35, z], r: [rw, rh, rw * 0.85], rot: [R() * 0.4, R() * 3, R() * 0.4], color: rockCol, g: 6, size: 0.07, density: 1300, clipY: g - 0.05 });
+  }
+
+  // kelp (group 5, k = strand)
+  const kelpSpots = [[-0.9, -1.2], [-0.55, -1.45], [-1.3, -0.85], [-1.6, -0.4], [-0.2, -1.3], [1.3, -1.3], [1.65, -0.95], [0.85, -1.55], [-1.95, 0.35], [2.1, 0.2], [0.6, -1.1], [-1.1, 1.5]];
+  kelpSpots.forEach(([x, z], k) => {
+    const g = groundH(x, z), H = 2.0 + hash3(k, 2, 3) * 1.4;
+    const pts = [];
+    for (let j = 0; j <= 5; j++){ const f = j / 5; pts.push([x + Math.sin(f * 3 + k) * 0.18, g + f * H, z + Math.cos(f * 2.5 + k) * 0.15]); }
+    const curve = tube(S, { pts, r: () => 0.028, color: (p, n, t) => mix3([0.16, 0.28, 0.17], [0.42, 0.6, 0.28], t), g: 5, k, size: 0.05, density: 2200 });
+    for (let j = 0; j < 14; j++){ // leaves
+      const f = 0.08 + j / 14 * 0.9, P = curve.getPointAt(f), side = j % 2 ? 1 : -1;
+      const a = k + j * 2.1, d = new THREE.Vector3(Math.cos(a) * side, 0, Math.sin(a) * side);
+      const len = 0.28 + hash3(k, j, 5) * 0.18;
+      tri(S, P.toArray(), P.clone().add(new THREE.Vector3(0, 0.22, 0)).toArray(), P.clone().addScaledVector(d, len).add(new THREE.Vector3(0, 0.25, 0)).toArray(),
+        { color: (p, n, w) => mix3([0.25, 0.42, 0.22], [0.62, 0.74, 0.38], f * 0.6 + w * 0.3), g: 5, k, size: 0.045, density: 2200 });
+    }
+  });
+
+  // branching coral
+  const coralCols = [[[0.75, 0.25, 0.3], [1.0, 0.55, 0.5]], [[0.85, 0.42, 0.18], [1.0, 0.78, 0.45]], [[0.65, 0.2, 0.28], [0.95, 0.47, 0.47]]];
+  function branch(p, dir, len, r, depth, cols, seed){
+    const end = p.clone().addScaledVector(dir, len);
+    const mid = p.clone().lerp(end, 0.5).add(new THREE.Vector3((hash3(seed, 1, 0) - 0.5) * 0.08, 0, (hash3(seed, 2, 0) - 0.5) * 0.08));
+    tube(S, { pts: [p.toArray(), mid.toArray(), end.toArray()], r: (t) => r * (1 - t * 0.35), color: (q, n, t) => mix3(cols[0], cols[1], clamp01((4 - depth) * 0.25 + t * 0.3)), size: 0.045, density: 2200 });
+    if (depth <= 0){ ellipsoid(S, { c: end.toArray(), r: [r * 1.3, r * 1.3, r * 1.3], color: () => cols[1], size: 0.04, density: 3000, e: 0.15 }); return; }
+    const n = 2 + (hash3(seed, 3, 1) > 0.6 ? 1 : 0);
+    for (let i = 0; i < n; i++){
+      const a = seed * 1.7 + i * (Math.PI * 2 / n);
+      const nd = dir.clone().add(new THREE.Vector3(Math.cos(a) * 0.65, 0.15, Math.sin(a) * 0.65)).normalize();
+      branch(end, nd, len * 0.72, r * 0.72, depth - 1, cols, seed * 3 + i + 1);
+    }
+  }
+  const corals = [[0.8, 0.45, 0], [1.2, 0.75, 1], [0.45, 0.85, 2], [-0.6, 0.75, 1], [1.55, 0.25, 0], [-1.35, -0.3, 2], [0.15, -0.55, 0], [-0.2, 0.25, 2]];
+  corals.forEach(([x, z, ci], i) => branch(new THREE.Vector3(x, groundH(x, z) - 0.02, z), up.clone(), 0.28 + hash3(i, 9, 9) * 0.12, 0.045, 3, coralCols[ci], i + 2));
+  // brain corals
+  for (const [x, z, r] of [[1.05, 0.15, 0.22], [-0.95, 0.4, 0.18], [0.55, -0.35, 0.16]]){
+    const g = groundH(x, z);
+    ellipsoid(S, { c: [x, g, z], r: [r, r * 0.75, r], clipY: g - 0.01, size: 0.045, density: 2600,
+      color: (p) => Math.sin(p.x * 60 + Math.sin(p.z * 40) * 2) > 0.2 ? [0.85, 0.8, 0.5] : [0.5, 0.5, 0.3] });
+  }
+  // sea fan
+  for (const [x, z, rot] of [[-0.25, 0.95, 0.4], [1.75, 0.55, -0.6]]){
+    const g = groundH(x, z);
+    for (let i = 0; i < 1400; i++){
+      const a = R() * Math.PI, rr = Math.sqrt(R()) * 0.55;
+      const lx = Math.cos(a) * rr * 1.15, ly = Math.sin(a) * rr;
+      const lattice = (Math.abs(Math.sin(lx * 40 + ly * 18)) < 0.35) || (Math.abs(Math.sin(lx * 18 - ly * 40)) < 0.35) || rr < 0.06;
+      if (!lattice) continue;
+      const pos = new THREE.Vector3(x + lx * Math.cos(rot), g + ly, z + lx * Math.sin(rot));
+      S.push(pos, new THREE.Vector3(-Math.sin(rot), 0, Math.cos(rot)), mix3([0.6, 0.2, 0.3], [0.95, 0.47, 0.47], rr * 1.4), 0.04, { g: 5, k: 20 + x });
+    }
+  }
+  // anemones (group 5)
+  for (const [x, z, k] of [[0.05, 0.6, 30], [-0.45, -0.05, 31], [1.35, -0.6, 32]]){
+    const g = groundH(x, z);
+    ellipsoid(S, { c: [x, g + 0.05, z], r: [0.09, 0.08, 0.09], color: () => [0.95, 0.47, 0.47], size: 0.04, density: 3000 });
+    for (let j = 0; j < 18; j++){
+      const a = j / 18 * Math.PI * 2, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      tube(S, { pts: [[x + d.x * 0.05, g + 0.1, z + d.z * 0.05], [x + d.x * 0.14, g + 0.25, z + d.z * 0.14], [x + d.x * 0.2, g + 0.36, z + d.z * 0.2]],
+        r: (t) => 0.018 * (1 - t) + 0.006, color: (p, n, t) => mix3([0.95, 0.5, 0.25], [1.0, 0.82, 0.5], t), g: 5, k, size: 0.035, density: 4000 });
+    }
+  }
+  // starfish
+  for (const [x, z, a0] of [[0.6, 1.6, 0.3], [-1.6, 1.2, 1.1], [2.2, -0.6, 0.7], [-0.9, -1.9, 0.2]]){
+    const g = groundH(x, z) + 0.02;
+    for (let arm = 0; arm < 5; arm++){
+      const a = a0 + arm * Math.PI * 2 / 5;
+      tube(S, { pts: [[x, g + 0.02, z], [x + Math.cos(a) * 0.17, g, z + Math.sin(a) * 0.17]], r: (t) => 0.04 * (1 - t) + 0.01, color: () => [0.9, 0.53, 0.23], size: 0.04, density: 4000 });
+    }
+  }
+  // half-buried anchor
+  {
+    const base = new THREE.Vector3(-0.35, groundH(-0.35, 1.45), 1.45);
+    const rust = (p) => mix3([0.3, 0.22, 0.2], [0.55, 0.4, 0.3], fbm(p.x * 9, p.y * 9, p.z * 9));
+    const A = (x, y, z) => base.clone().add(new THREE.Vector3(x, y, z)).toArray();
+    tube(S, { pts: [A(0, -0.1, 0), A(0.25, 0.45, -0.1), A(0.5, 0.95, -0.2)], r: () => 0.05, color: rust, clipY: base.y - 0.06 });
+    tube(S, { pts: [A(0.43, 0.82, -0.17), A(0.6, 0.78, -0.22)], r: () => 0.035, color: rust });
+    tube(S, { pts: [A(-0.35, 0.02, 0.05), A(-0.15, -0.12, 0.03), A(0.1, -0.12, -0.02), A(0.32, 0.06, -0.06)], r: () => 0.045, color: rust, clipY: base.y - 0.06 });
+    for (let j = 0; j < 28; j++){
+      const a = j / 28 * Math.PI * 2, c = A(0.55 + 0.05 * Math.cos(a), 1.0 + 0.07 * Math.sin(a), -0.21);
+      ellipsoid(S, { c, r: [0.02, 0.02, 0.02], color: rust, size: 0.035, density: 4000 });
+    }
+  }
+
+  /* ---- great white shark (group 1, local coords: nose +z) ---- */
+  const K = 1.0;
+  const z0 = -1.05, z1 = 1.35, L = z1 - z0;
+  const prof = (s) => Math.pow(Math.sin(Math.PI * Math.pow(clamp01(s), 0.72)), 0.8);
+  const W = (s) => 0.27 * prof(s) + 0.025, Hh = (s) => 0.33 * prof(s) + 0.03;
+  const yc = (s) => -0.06 * Math.pow(clamp01((s - 0.75) / 0.25), 2);
+  const shark = (pos, nor, c, size, e = 0) => S.push(pos.multiplyScalar(K), nor, c, size, { g: 1, e });
+  const topCol = (p) => mix3([0.27, 0.32, 0.39], [0.47, 0.53, 0.6], clamp01(fbm(p.x * 6, p.y * 6, p.z * 6) * 1.4 - 0.2));
+  const belly = [0.88, 0.91, 0.93];
+  const gills = [0.7, 0.725, 0.75, 0.775, 0.8];
+  let made = 0;
+  while (made < 30000){
+    const s = R();
+    if (R() > (W(s) + Hh(s)) / 0.8) continue;
+    made++;
+    const th = R() * Math.PI * 2, ct = Math.cos(th), st = Math.sin(th);
+    const z = z0 + s * L, w = W(s), h = Hh(s) * (st < 0 ? 0.85 : 1);
+    const x = w * ct, y = h * st + yc(s);
+    const e = 0.004, slope = (W(s + e) - W(s - e)) / (2 * e * L);
+    const nor = new THREE.Vector3(ct / w, st / h, -slope * 2).normalize();
+    // countershading with a ragged boundary
+    const bnd = -0.12 + 0.18 * (vnoise(z * 5, 1, 0) - 0.5) * 2 + 0.07 * Math.sin(z * 15);
+    let c = st > bnd ? topCol({ x, y, z }) : belly;
+    if (st > bnd && st < bnd + 0.08) c = mix3(c, [0.62, 0.66, 0.7], 0.5);
+    // gills
+    if (Math.abs(ct) > 0.5 && st > -0.3 && st < 0.3){
+      for (const g of gills) if (Math.abs(z - (g * L + z0) - 0.04 * st) < 0.008) c = [0.2, 0.23, 0.28];
+    }
+    // eye
+    const eyeZ = 1.08, ed = Math.hypot(z - eyeZ, (st - 0.25) * h);
+    if (Math.abs(ct) > 0.5 && ed < 0.03) c = ed < 0.01 && ct > 0 ? [0.8, 0.85, 0.9] : [0.02, 0.02, 0.03];
+    // mouth with teeth
+    if (st < -0.25){
+      const mz = 0.92 + 0.22 * (-st - 0.25);
+      const dz = z - mz;
+      if (Math.abs(dz) < 0.025) c = [0.3, 0.06, 0.09];
+      else if (dz >= 0.025 && dz < 0.045 && hash3(Math.round(th * 40), 0, 0) > 0.35) c = [0.97, 0.97, 0.94];
+      else if (dz > -0.045 && dz <= -0.025 && hash3(Math.round(th * 40), 1, 0) > 0.45) c = [0.92, 0.92, 0.88];
+    }
+    shark(new THREE.Vector3(x, y, z), nor, c, 0.045);
+  }
+  const fin = (a, b, c, colFn, dens = 2600) => {
+    for (const off of [-0.012, 0.012]){
+      const sh = (v) => [v[0] + (Math.abs(v[0]) < 0.05 ? off : 0), v[1] + (Math.abs(v[0]) >= 0.05 ? off : 0), v[2]];
+      tri(S, sh(a), sh(b), sh(c), { color: colFn, g: 1, size: 0.045, density: dens, e: 0.35 });
+    }
+  };
+  // fins are built in unscaled coords then scaled with the body below
+  const finStart = S.i;
+  const darkFin = (p, n, w) => mix3([0.34, 0.4, 0.48], [0.56, 0.62, 0.7], clamp01(1 - w + hash3(p.x * 50, p.y * 50, p.z * 50) * 0.2));
+  const sz = (zz) => (zz - z0) / L;
+  fin([0, Hh(sz(0.22)) - 0.03, 0.22], [0, Hh(sz(-0.3)) - 0.03, -0.3], [0, Hh(sz(-0.1)) + 0.58, -0.38], darkFin);   // dorsal
+  fin([0, Hh(sz(-0.72)) - 0.02, -0.7], [0, Hh(sz(-0.86)) - 0.02, -0.84], [0, Hh(sz(-0.8)) + 0.11, -0.92], darkFin); // 2nd dorsal
+  fin([0, -Hh(sz(-0.7)) * 0.85 + 0.02, -0.68], [0, -Hh(sz(-0.85)) * 0.85 + 0.02, -0.84], [0, -Hh(sz(-0.8)) * 0.85 - 0.1, -0.92], darkFin); // anal
+  for (const s of [-1, 1]){
+    tri(S, [s * 0.24, -0.14, 0.66], [s * 0.22, -0.18, 0.32], [s * 0.95, -0.55, 0.0],
+      { color: (p, n, w) => (n.y > 0 ? darkFin(p, n, w) : mix3(belly, [0.6, 0.65, 0.7], w * 0.5)), g: 1, size: 0.045, density: 3600, e: 0.3 }); // pectoral
+    tri(S, [s * 0.1, -0.24, -0.38], [s * 0.08, -0.22, -0.55], [s * 0.3, -0.38, -0.66],
+      { color: (p, n, w) => (n.y > 0 ? darkFin(p, n, w) : belly), g: 1, size: 0.045, density: 3600, e: 0.3 }); // pelvic
+  }
+  // caudal fin: crescent with a bigger upper lobe
+  fin([0, 0.05, -0.95], [0, -0.04, -1.08], [0, 0.78, -1.6], darkFin, 3200);
+  fin([0, 0.0, -1.0], [0, 0.03, -1.12], [0, -0.58, -1.42], darkFin, 3200);
+  fin([0, 0.06, -1.0], [0, -0.06, -1.0], [0, 0.0, -1.18], darkFin, 3200);
+  for (let i = finStart; i < S.i; i++) for (let a = 0; a < 3; a++) S.p[i * 3 + a] *= K;
+
+  /* ---- a school of small fish (group 4, u = fish index) ---- */
+  for (let f = 0; f < 46; f++){
+    const yellow = hash3(f, 4, 4) > 0.65;
+    const body = (p) => p.y > 0.005 ? (yellow ? [0.95, 0.78, 0.3] : [0.45, 0.62, 0.75]) : [0.88, 0.92, 0.95];
+    ellipsoid(S, { c: [0, 0, 0], r: [0.026, 0.045, 0.1], color: body, g: 4, u: f, k: f, size: 0.03, density: 2600 });
+    tri(S, [0, 0, -0.08], [0, 0.055, -0.16], [0, -0.055, -0.16], { color: () => (yellow ? [1.0, 0.82, 0.4] : [0.55, 0.7, 0.82]), g: 4, u: f, k: f, size: 0.028, density: 6000 });
+  }
+
+  /* ---- soft layers ---- */
+  const rays = new Cloud(R, true);
+  for (let c = 0; c < 9; c++){
+    const x0 = (R() - 0.5) * 4, z0r = (R() - 0.5) * 3, dir = new THREE.Vector3(0.28, -1, 0.12).normalize();
+    for (let i = 0; i < 70; i++){
+      const f = i / 70;
+      const p = new THREE.Vector3(x0, 3.6, z0r).addScaledVector(dir, f * 5.2);
+      rays.push(p, null, [0.45, 0.72, 0.85], 0.55 + R() * 0.2, { a: 0.045 * (1 - f * 0.6), g: 2, u: f, k: c });
+    }
+  }
+  const motes = new Cloud(R, true);
+  for (let i = 0; i < 900; i++){
+    const th = R() * Math.PI * 2, r = 3.4 * Math.sqrt(R());
+    motes.push(new THREE.Vector3(r * Math.cos(th), -1.3 + R() * 4.5, r * Math.sin(th)), null, [0.6, 0.82, 0.9], 0.022 + R() * 0.02, { a: 0.55, g: 0, u: R(), k: R() * 10 });
+  }
+  const vents = [[-0.7, -0.5], [1.0, -0.9], [0.05, 0.6], [-1.7, 0.9], [0.8, 0.45]];
+  for (const [x, z] of vents){
+    for (let i = 0; i < 40; i++){
+      motes.push(new THREE.Vector3(x + (R() - 0.5) * 0.15, groundH(x, z) + 0.2, z + (R() - 0.5) * 0.15), null, [0.8, 0.93, 1.0], 0.035 + R() * 0.035, { a: 0.75, g: 1, u: R(), k: R() * 10 });
+    }
+  }
+  return { solid: S, soft: [{ cloud: rays, additive: true, order: 2 }, { cloud: motes, additive: true, order: 3 }] };
+}
+
+const SHARK_SOLID = /* glsl */`
+  void animate(inout vec3 p, inout vec3 n, inout vec3 c, inout float e, inout float s, vec3 m, float t){
+    float g = m.x;
+    if (g == 1.0){
+      // swim undulation, stronger toward the tail
+      float tw = smoothstep(0.7, -1.9, p.z);
+      float ph = p.z * 2.1 + t * 4.2;
+      p.x += sin(ph) * 0.24 * tw * tw + sin(t * 4.2 + 1.3) * 0.035 * (1.0 - tw);
+      n.x += cos(ph) * 0.35 * tw * tw * n.z;
+      // bank into the turn
+      float b = -0.16;
+      vec2 xy = vec2(cos(b) * p.x - sin(b) * p.y, sin(b) * p.x + cos(b) * p.y);
+      vec2 nxy = vec2(cos(b) * n.x - sin(b) * n.y, sin(b) * n.x + cos(b) * n.y);
+      // follow a circular path around the reef
+      float Rp = 2.6;
+      float a = t * 0.28 + p.z / Rp;
+      vec3 outv = vec3(cos(a), 0.0, sin(a)), fwd = vec3(-sin(a), 0.0, cos(a));
+      float bob = sin(t * 0.55) * 0.22;
+      p = outv * (Rp + xy.x) + vec3(0.0, xy.y + 0.75 + bob + p.z * 0.07 * cos(t * 0.55), 0.0);
+      n = normalize(outv * nxy.x + vec3(0.0, nxy.y, 0.0) + fwd * n.z);
+    } else if (g == 4.0){
+      float idx = m.y;
+      float R0 = 1.35 + (hash(idx + 1.7) - 0.5) * 0.7;
+      float yo = -0.35 + (hash(idx + 2.9) - 0.5) * 0.7 + sin(t * 0.9 + idx) * 0.06;
+      float a0 = -t * 0.4 + hash(idx * 3.1) * 1.3;
+      p.x += sin(t * 14.0 + idx) * 0.02 * smoothstep(0.0, -0.16, p.z);
+      float a = a0 - p.z / R0;
+      vec3 outv = vec3(cos(a), 0.0, sin(a)), fwd = vec3(sin(a), 0.0, -cos(a));
+      p = outv * (R0 + p.x) + vec3(0.0, yo + p.y, 0.0);
+      n = normalize(outv * n.x + vec3(0.0, n.y, 0.0) + fwd * n.z);
+    } else if (g == 5.0){
+      float h = clamp((p.y + 1.45) / 2.8, 0.0, 1.0);
+      p.x += sin(t * 0.9 + p.y * 1.3 + m.z) * 0.13 * h;
+      p.z += cos(t * 0.7 + p.y * 1.1 + m.z * 1.3) * 0.1 * h;
+    } else if (g == 6.0){
+      float ca = abs(sin(p.x * 5.0 + t * 0.9) + sin(p.z * 6.0 - t * 1.1) + sin((p.x + p.z) * 4.0 + t * 0.6)) / 3.0;
+      c *= 0.82 + 0.55 * pow(1.0 - ca, 6.0) * smoothstep(-0.2, 0.8, n.y);
+    }
+  }
+`;
+const SHARK_SOFT = /* glsl */`
+  void animateSoft(inout vec3 p, inout vec3 c, inout float a, inout float s, vec3 m, float t){
+    float g = m.x;
+    if (g == 0.0){
+      p.y = mod(p.y + 1.3 + t * 0.03 * (0.5 + m.y), 4.5) - 1.3;
+      p.x += sin(t * 0.3 + m.z * 6.0) * 0.15;
+      p.z += cos(t * 0.25 + m.z * 4.0) * 0.15;
+      a *= 0.3 + 0.7 * pow(0.5 + 0.5 * sin(t * (0.8 + m.y) + m.z * 20.0), 3.0);
+    } else if (g == 1.0){ // bubbles
+      float f = fract(t * 0.16 * (0.7 + hash(m.z)) + m.y);
+      p.y += f * 4.6;
+      p.x += sin(t * 2.2 + m.z * 7.0) * 0.04 + (hash(m.z + 3.0) - 0.5) * 0.3 * f;
+      p.z += (hash(m.z + 5.0) - 0.5) * 0.3 * f;
+      s *= 1.0 + f * 0.8;
+      a *= smoothstep(0.0, 0.04, f) * (1.0 - smoothstep(0.8, 1.0, f));
+    } else { // god rays
+      p.x += sin(t * 0.12 + m.z * 2.0) * 0.35;
+      a *= 0.45 + 0.55 * (0.5 + 0.5 * sin(t * 0.5 + m.z * 3.1 + m.y * 2.0));
+    }
+  }
+`;
+
 export const SCENES = {
+  shark: {
+    title: { zh: '大白鲨', en: 'Great White' },
+    build: buildShark,
+    solidAnim: SHARK_SOLID, softAnim: SHARK_SOFT,
+    background: '#03101c',
+    camera: [0, 0.9, 9.6], target: [0, 0.05, 0], fov: 38, startTime: 2.5,
+    light: [0.3, 1.0, 0.45], lightColor: [0.7, 0.84, 0.92], ambient: [0.3, 0.38, 0.45], rim: [0.18, 0.32, 0.42],
+    fogColor: [0.03, 0.13, 0.21], fog: [7.5, 15.0, 0.6],
+    palette: ['#03101c', '#05172a', '#082136', '#0c2c44', '#123a54', '#1a4a66', '#245b79', '#336f8e', '#4886a4', '#64a0bb', '#88bcd0', '#b2d6e2', '#e0f1f5',
+      '#2a333d', '#47525e', '#6c7884', '#98a4ae', '#cad2d8', '#f3f6f7',
+      '#7a2e3c', '#c04d5a', '#f07a78', '#ffb39a', '#e8873a', '#ffd27a',
+      '#1f3d2a', '#3a6b3a', '#6f9a45', '#a9c26a', '#8a8f78', '#b9b493', '#0a0c10'],
+    dither: 0.075,
+    autoRotateSpeed: 0.3,
+    minDistance: 4, maxDistance: 15,
+    pixelHeight: 230,
+  },
+
   dragon: {
     title: { zh: '冰霜骨龙', en: 'Frost Bone Dragon' },
     build: buildDragon,
