@@ -46,7 +46,7 @@
         cap = K.light.capture(B, S);
       S.sun = B.norm([-0.45, 0.75, 0.5]);
       S.view = B.norm([0.25, 0.3, 0.92]);
-      S.res = 0.09;
+      S.res = 0.11;
       S.amb = 0.24;
       S.sky = 0.32;
       S.lights.push({ p: [0, 4.6, 0], r: 5.5, s: 0.7 }, { p: [0, 1.8, 3.4], r: 3, s: 0.35 });
@@ -68,21 +68,21 @@
       });
       const FROST_PINK = [12, 11, 10, 9], FROST_WHITE = [10, 9, 9, 24], FROST_LAV = [19, 18, 18, 24];
       function tier(y0, h, r, sponge, filling, frost, dens) {
-        S.lathe([0, y0, 0], h, t => r * (t > 0.92 ? 1 - (t - 0.92) * 0.6 : 1), tierMat(y0, h, sponge, filling, frost, dens), { res: 0.08 });
+        S.lathe([0, y0, 0], h, t => r * (t > 0.92 ? 1 - (t - 0.92) * 0.6 : 1), tierMat(y0, h, sponge, filling, frost, dens), { res: 0.095 });
         // drips of frosting over the edge
         const n = Math.round(r * 9);
         for (let i = 0; i < n; i++) {
           const a = (i / n) * Math.PI * 2 + B.n3(i, r, 1), len = 0.18 + B.n3(i * 3, r, 2) * 0.42;
-          S.ball([Math.cos(a) * (r + 0.02), y0 + h - len * 0.5, Math.sin(a) * (r + 0.02)], [0.12, len * 0.55, 0.12], { r: frost }, { res: 0.05 });
+          S.ball([Math.cos(a) * (r + 0.02), y0 + h - len * 0.5, Math.sin(a) * (r + 0.02)], [0.12, len * 0.55, 0.12], { r: frost }, { res: 0.065 });
         }
         S.torus([0, y0 + h - 0.02, 0], r - 0.08, 0.1, { r: frost, tex: (x, y, z, ny, t) => spr(x, y, z, t, 0.8) }, { res: 0.05 });
       }
 
       /* floating plate on cream clouds */
-      S.lathe([0, -0.35, 0], 0.32, t => 4.6 - (1 - t) * 0.5, { r: [26, 25, 25, 24], tex: (x, y, z, ny) => (ny > 0.6 && Math.hypot(x, z) > 4.1 ? S.pick([19, 18], 0.5) : undefined) }, { res: 0.1 });
+      S.lathe([0, -0.35, 0], 0.32, t => 4.6 - (1 - t) * 0.5, { r: [26, 25, 25, 24], tex: (x, y, z, ny) => (ny > 0.6 && Math.hypot(x, z) > 4.1 ? S.pick([19, 18], 0.5) : undefined) }, { res: 0.14 });
       for (let i = 0; i < 16; i++) {
         const a = (i / 16) * Math.PI * 2, r = 3.4 + B.n3(i, 2, 2) * 1.3;
-        S.ball([Math.cos(a) * r, -0.85 - B.n3(i, 3, 1) * 0.5, Math.sin(a) * r], 0.7 + B.n3(i, 4, 1) * 0.5, { r: [3, 10, 9, 24] }, { res: 0.12 });
+        S.ball([Math.cos(a) * r, -0.85 - B.n3(i, 3, 1) * 0.5, Math.sin(a) * r], 0.7 + B.n3(i, 4, 1) * 0.5, { r: [3, 10, 9, 24] }, { res: 0.17 });
       }
 
       /* three cake tiers */
@@ -123,7 +123,7 @@
         S.lathe([x, 0, z], h, t => 0.5 - t * 0.05 + (t > 0.93 ? 0.1 : 0), {
           r: [7, 8, 8, 9],
           tex: (px, py, pz, ny, t) => (Math.sin(Math.atan2(pz - z, px - x) * 3 + py * 3.2) > 0.55 ? S.pick(stripe, t) : undefined)
-        }, { res: 0.07 });
+        }, { res: 0.09 });
         for (let j = 0; j < 3; j++) {
           const wa = a + Math.PI + (j - 1) * 0.0 , wy = 0.9 + j * 0.9;
           const dir = [Math.cos(a + Math.PI * 0.85), Math.sin(a + Math.PI * 0.85)];
@@ -131,7 +131,7 @@
           S.box([x + dir[0] * r0, wy, z + dir[1] * r0], [0.1, 0.17, 0.1], { r: [21, 22, 24], em: true }, { res: 0.04, rotY: -(a + Math.PI * 0.85) });
         }
         // swirl roof
-        S.lathe([x, h + 0.1, z], 1.6, t => Math.max(0.03, (1 - Math.pow(t, 0.9)) * 0.64 * (0.86 + 0.14 * Math.sin(t * 26))), { r: [10, 9, 9, 24] }, { res: 0.05 });
+        S.lathe([x, h + 0.1, z], 1.6, t => Math.max(0.03, (1 - Math.pow(t, 0.9)) * 0.64 * (0.86 + 0.14 * Math.sin(t * 26))), { r: [10, 9, 9, 24] }, { res: 0.065 });
         S.ball([x, h + 1.82, z], 0.2, { r: [15, 14, 14, 24] }, { res: 0.035 });
         S.lathe([x, h + 1.95, z], 0.3, t => 0.025, { r: [16, 17] }, { res: 0.03 });
         TOWERS.push([x, z, h]);
@@ -159,7 +159,7 @@
       const BALLOONS = [];
       [[-6.2, 5.6, -1.5, [11, 12]], [5.8, 6.6, -2.4, [17, 16]], [6.4, 4.2, 2.6, [18, 19]], [-5.6, 3.8, 3.0, [21, 23]], [1.2, 8.2, -5.6, [20, 18]]].forEach(([x, y, z, col], i) => {
         const tag = 'balloon' + i;
-        S.ball([x, y, z], [0.62, 0.74, 0.62], { r: [col[1], col[0], col[0], 24] }, { res: 0.07, tag });
+        S.ball([x, y, z], [0.62, 0.74, 0.62], { r: [col[1], col[0], col[0], 24] }, { res: 0.095, tag });
         S.lathe([x, y - 0.82, z], 0.1, t => 0.08 * (1 - t), { r: [col[1], col[0]] }, { res: 0.03, tag });
         S.lathe([x, y - 2.6, z], 1.8, t => 0.012, { r: [25, 24] }, { res: 0.03, tag });
         BALLOONS.push([x, y, z]);
@@ -167,7 +167,7 @@
 
       /* stars */
       K.seed(77);
-      for (let i = 0; i < 240; i++) {
+      for (let i = 0; i < 170; i++) {
         const th = K.rnd() * Math.PI * 2, ph = Math.acos(K.rnd() * 1.6 - 0.6), r = 24 + K.rnd() * 4;
         S.ball([Math.sin(ph) * Math.cos(th) * r, Math.cos(ph) * r * 0.8 + 3, Math.sin(ph) * Math.sin(th) * r], 0.035 + K.rnd() * 0.05,
           { r: K.rnd() < 0.3 ? [11, 10, 24] : K.rnd() < 0.5 ? [18, 24] : [20, 24], em: true }, { res: 0.09, ghost: true });
@@ -175,34 +175,34 @@
 
       /* the reveal: a big "30" and 生日快乐, hidden until the candles are out */
       const TNAME = [0, 14.15, 0], T30 = [0, 10.8, 0], THB = [0, 7.7, 0];
-      // each pixel is a dark back plate plus a bright face, so the letters read as solid blocks
-      const voxel = (c, v, d, back, face, tag) => {
-        S.box([c[0], c[1], c[2] - d * 0.55], [v * 0.52, v * 0.52, d * 0.5], { r: back, em: true }, { res: Math.min(0.06, v * 0.4), tag });
-        S.box([c[0], c[1], c[2] + d * 0.1], [v * 0.44, v * 0.44, d * 0.18], { r: face, em: true }, { res: Math.min(0.05, v * 0.35), tag });
+      // Text from a bitmap: pixels are merged into rectangles (runs along a row, stacked while the rows below match),
+      // each drawn as a dark back plate plus a bright face, so a few dozen solids make a whole word.
+      const blocks = (rows, center, v, d, back, face, tag) => {
+        const H = rows.length, Wd = rows[0].length, used = rows.map(r => new Array(r.length).fill(false));
+        const x0 = center[0] - (Wd * v) / 2, y0 = center[1] + (H * v) / 2;
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < Wd; x++) {
+            if (rows[y][x] !== '1' || used[y][x]) continue;
+            let len = 0;
+            while (x + len < Wd && rows[y][x + len] === '1' && !used[y][x + len]) len++;
+            let hgt = 1;
+            const fits = yy => { for (let k = 0; k < len; k++) if (rows[yy][x + k] !== '1' || used[yy][x + k]) return false; return (x + len >= Wd || rows[yy][x + len] !== '1' || used[yy][x + len]) && (x === 0 || rows[yy][x - 1] !== '1' || used[yy][x - 1]); };
+            while (y + hgt < H && fits(y + hgt)) hgt++;
+            for (let yy = y; yy < y + hgt; yy++) for (let k = 0; k < len; k++) used[yy][x + k] = true;
+            const cx = x0 + (x + len / 2) * v, cy = y0 - (y + hgt / 2) * v, hx = (len * v) / 2, hy = (hgt * v) / 2;
+            S.box([cx, cy, center[2] - d * 0.55], [hx + v * 0.04, hy + v * 0.04, d * 0.5], { r: back, em: true }, { res: Math.min(0.07, v * 0.5), tag });
+            S.box([cx, cy, center[2] + d * 0.1], [hx - v * 0.05, hy - v * 0.05, d * 0.18], { r: face, em: true }, { res: Math.min(0.06, v * 0.45), tag });
+          }
+        }
       };
       {
-        const v = 0.44, cols = 13, w = cols * v, h = 8 * v;
-        ['3', '0'].forEach((ch, ci) => DIGITS[ch].forEach((row, ry) => [...row].forEach((bit, rx) => {
-          if (bit !== '1') return;
-          voxel([T30[0] - w / 2 + (ci * 7 + rx + 0.5) * v, T30[1] + h / 2 - (ry + 0.5) * v, T30[2]], v, 0.5, [15, 23], [21, 21, 22], 't30');
-        })));
+        const rows = DIGITS['3'].map((r, i) => r + '0' + DIGITS['0'][i]);
+        blocks(rows, T30, 0.44, 0.5, [15, 23], [21, 21, 22], 't30');
       }
       const nm = glyphRows(NAME, 20);
-      if (nm) {
-        const v = 0.13, w = nm[0].length * v, h = nm.length * v;
-        nm.forEach((row, ry) => [...row].forEach((bit, rx) => {
-          if (bit !== '1') return;
-          voxel([TNAME[0] - w / 2 + (rx + 0.5) * v, TNAME[1] + h / 2 - (ry + 0.5) * v, TNAME[2]], v, 0.28, [19, 19], [18, 18, 18], 'tname');
-        }));
-      }
+      if (nm) blocks(nm, TNAME, 0.13, 0.28, [19, 19], [18, 18, 18], 'tname');
       const hb = glyphRows('生日快乐', 17);
-      if (hb) {
-        const v = 0.13, w = hb[0].length * v, h = hb.length * v;
-        hb.forEach((row, ry) => [...row].forEach((bit, rx) => {
-          if (bit !== '1') return;
-          voxel([THB[0] - w / 2 + (rx + 0.5) * v, THB[1] + h / 2 - (ry + 0.5) * v, THB[2]], v, 0.26, [13, 13], [12, 11, 11], 'thb');
-        }));
-      }
+      if (hb) blocks(hb, THB, 0.13, 0.26, [13, 13], [12, 11, 11], 'thb');
       S.bake();
 
       K.caustic(B, [0, top + 0.02, 0], 1.1, [22, 21, 23], { a: 0.5, zs: 1, n: 24 });
