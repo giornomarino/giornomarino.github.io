@@ -3,87 +3,222 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pixel Splats · Giorno Marino</title>
-<meta name="description" content="Giorno Marino 的实时 3D 像素高斯泼溅小实验：大白鲨、雨中的乌贼、冰霜骨龙。可以拖动旋转。">
+<title>Lab · Giorno Marino</title>
+<meta name="description" content="Giorno Marino 的像素风 3D 高斯泼溅实验室：大白鲨、雨中的乌贼、幽光史莱姆祭坛、熔火符文浮岛。">
 <link rel="canonical" href="https://giornomarino.github.io/lab/">
 <link rel="icon" type="image/png" href="../assets/pixel-pet.png">
-<meta property="og:title" content="Pixel Splats · Giorno Marino">
-<meta property="og:description" content="Real-time pixel-art gaussian splat scenes you can spin around.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Lab · Giorno Marino">
+<meta property="og:description" content="Pixel-art gaussian splat scenes, rendered live in the browser.">
 <meta property="og:url" content="https://giornomarino.github.io/lab/">
+<meta property="og:image" content="https://giornomarino.github.io/lab/arcane-poster.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
 <style>
-html,body{margin:0;height:100%;background:#04060c;color:#c8d4e8;overflow:hidden}
-body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+:root{--ink:#e8ecf8;--muted:#a3abc8;--line:rgba(170,180,230,.18);--glass:rgba(10,12,30,.62);--accent:#9ef0ff;--violet:#d8a2ff;--gold:#ffcf5a}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;background:#070814}
+body{margin:0;color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;min-height:100vh}
+a{color:inherit}
 .pixel{font-family:"Silkscreen",ui-monospace,monospace;letter-spacing:.02em}
-canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
-canvas:active{cursor:grabbing}
-.bar{position:fixed;left:16px;right:16px;top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;pointer-events:none}
-.bar > *{pointer-events:auto}
-a{color:inherit;text-decoration:none}
-.chip{background:rgba(10,14,24,.72);border:1px solid rgba(160,180,220,.18);border-radius:10px;padding:6px 12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.scenes{display:flex;gap:6px}
-.scenes button{font:inherit;color:inherit;cursor:pointer}
-.scenes button[aria-pressed="true"]{background:#c8def5;color:#0a1020;border-color:transparent}
-.hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);font-size:12px;opacity:.6;white-space:nowrap}
+
+/* live background */
+.bg{position:fixed;inset:0;z-index:0;overflow:hidden;background:#070814}
+.bg img,.bg canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;display:block}
+.bg canvas{opacity:0;transition:opacity 1.2s ease}
+.bg.live canvas{opacity:1}
+.bg::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 80% at 50% 30%,transparent 40%,rgba(7,8,20,.55) 100%),
+             linear-gradient(180deg,rgba(7,8,20,0) 0,rgba(7,8,20,.15) 45vh,rgba(7,8,20,.78) 95vh,rgba(7,8,20,.92) 100%)}
+
+.wrap{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:0 20px}
+header.top{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;text-decoration:none;color:var(--muted);
+  background:var(--glass);border:1px solid var(--line);border-radius:10px;padding:5px 12px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer;font-family:inherit}
+.chip:hover{color:var(--ink);border-color:rgba(200,210,255,.4)}
+.tools{display:flex;gap:6px}
+
+.hero{min-height:62vh;display:flex;flex-direction:column;justify-content:flex-end;padding:0 0 44px}
+.hero h1{margin:0;font-size:clamp(56px,13vw,124px);line-height:.95;font-weight:400;
+  text-shadow:0 0 24px rgba(158,240,255,.35),0 4px 0 #2a1450}
+.hero h1 span{color:var(--accent)}
+.hero p{margin:14px 0 0;max-width:560px;color:#cdd3ea;text-shadow:0 1px 8px #070814}
+
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.card{display:flex;flex-direction:column;text-decoration:none;background:var(--glass);border:1px solid var(--line);
+  border-radius:18px;overflow:hidden;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
+.card:hover{transform:translateY(-3px);border-color:rgba(158,240,255,.45);box-shadow:0 10px 40px rgba(90,42,146,.35)}
+.thumb{position:relative;aspect-ratio:900/765;overflow:hidden;background:#04060c}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;image-rendering:pixelated;transition:transform .5s ease}
+.card:hover .thumb img{transform:scale(1.04)}
+.tag{position:absolute;left:12px;top:12px;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(7,8,20,.7);border:1px solid var(--line);color:var(--muted)}
+.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:6px}
+.body h2{margin:0;font-size:19px;font-weight:600}
+.body p{margin:0;font-size:14px;color:var(--muted)}
+.go{margin-top:6px;font-size:14px;color:var(--accent)}
+
+.credit{margin:40px 0 0;padding:16px 18px;border-radius:14px;background:var(--glass);border:1px solid var(--line);
+  font-size:13px;color:var(--muted);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.credit a{color:var(--accent);text-decoration:none}
+.credit a:hover{text-decoration:underline}
+footer{padding:36px 0 40px;color:var(--muted);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
 [data-lang="en"] .zh,[data-lang="zh"] .en{display:none}
-.err{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:20px}
+@media (max-width:680px){.grid{grid-template-columns:1fr}.hero{min-height:52vh}}
 </style>
 </head>
 <body>
-<canvas id="c" aria-label="3D pixel splat scene"></canvas>
-<div class="bar">
-  <a class="chip pixel" href="../">← giornomarino</a>
-  <div class="scenes" id="scenes"></div>
+<div class="bg" id="bg" aria-hidden="true">
+  <img src="arcane-poster.png" alt="" width="1920" height="1080">
+  <canvas id="bgc"></canvas>
 </div>
-<div class="hint chip"><span class="zh">拖动旋转 · 滚轮 / 双指缩放</span><span class="en">Drag to orbit · scroll or pinch to zoom</span></div>
-<div class="err" id="err"><p><span class="zh">你的浏览器不支持 WebGL 2，看不了这个效果。</span><span class="en">This needs WebGL 2, which your browser doesn't support.</span></p></div>
+
+<div class="wrap">
+  <header class="top">
+    <a class="chip pixel" href="../">← giornomarino</a>
+    <div class="tools">
+      <button class="chip" id="motion" type="button"></button>
+      <button class="chip" id="lang" type="button" aria-label="Switch language">EN</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1 class="pixel">L<span>a</span>b</h1>
+    <p class="zh">像素风 3D 高斯泼溅的小实验。每个场景都由几万个小点拼成，在浏览器里实时渲染，可以拖动旋转。背景这座浮空秘境也是活的。</p>
+    <p class="en">Little experiments in pixel-art gaussian splats. Each scene is tens of thousands of points rendered live in your browser — drag to spin them. The floating realm behind this page is live too.</p>
+  </section>
+
+  <main class="grid">
+    <a class="card" href="view/#shark">
+      <div class="thumb"><img src="../assets/lab-shark.webp" alt="" loading="lazy" width="900" height="765"><span class="tag">three.js</span></div>
+      <div class="body">
+        <h2 class="pixel"><span class="zh">大白鲨</span><span class="en">Great White</span></h2>
+        <p class="zh">大白鲨绕着珊瑚礁巡游，身体和尾巴真实摆动；海带、鱼群、光柱、气泡和焦散。</p>
+        <p class="en">A great white circles a reef with real body undulation — kelp, a fish school, god rays, bubbles and caustics.</p>
+        <span class="go"><span class="zh">进入</span><span class="en">Open</span> →</span>
+      </div>
+    </a>
+    <a class="card" href="view/#squid">
+      <div class="thumb"><img src="../assets/lab-squid.webp" alt="" loading="lazy" width="900" height="765"><span class="tag">three.js</span></div>
+      <div class="body">
+        <h2 class="pixel"><span class="zh">雨中的乌贼</span><span class="en">Squid in the Rain</span></h2>
+        <p class="zh">乌云下的红色乌贼，触手在水洼里游动，雨滴落下溅起水花，偶尔有闪电。</p>
+        <p class="en">A red squid under a storm cloud, arms swirling in a puddle, rain splashing, the odd flash of lightning.</p>
+        <span class="go"><span class="zh">进入</span><span class="en">Open</span> →</span>
+      </div>
+    </a>
+    <a class="card" href="ink/#slime">
+      <div class="thumb"><img src="../assets/ink-slime.webp" alt="" loading="lazy" width="900" height="765"><span class="tag">Ink Studio</span></div>
+      <div class="body">
+        <h2 class="pixel"><span class="zh">幽光史莱姆祭坛</span><span class="en">Luminous Slime Shrine</span></h2>
+        <p class="zh">果冻软体物理的史莱姆，内部发光核心、石灯和体积光。点一下可以戳它。</p>
+        <p class="en">A jelly slime with soft-body physics, a glowing core, stone lanterns and light shafts. Click to poke it.</p>
+        <span class="go"><span class="zh">进入</span><span class="en">Open</span> →</span>
+      </div>
+    </a>
+    <a class="card" href="ink/#island">
+      <div class="thumb"><img src="../assets/ink-island.webp" alt="" loading="lazy" width="900" height="765"><span class="tag">Ink Studio</span></div>
+      <div class="body">
+        <h2 class="pixel"><span class="zh">熔火符文浮岛</span><span class="en">Ember Rune Island</span></h2>
+        <p class="zh">玄武岩浮岛上的发光晶核与环绕碎片，扭曲符文石柱、火山烟雾和火星。</p>
+        <p class="en">A glowing crystal and orbiting shards over a basalt island, twisted rune pillars, smoke and embers.</p>
+        <span class="go"><span class="zh">进入</span><span class="en">Open</span> →</span>
+      </div>
+    </a>
+  </main>
+
+  <p class="credit">
+    <span class="zh">背景「星辉秘境」和两个 Ink Studio 场景用 <a href="https://github.com/siliconjungle/shapeshift-labs-ink-studio">Ink Studio</a>（MIT 开源，作者 siliconjungle）制作；灵感来自 <a href="https://x.com/JungleSilicon">@JungleSilicon</a> 的像素高斯泼溅作品。</span>
+    <span class="en">The “Arcane Skyreach” background and the two Ink Studio scenes are made with <a href="https://github.com/siliconjungle/shapeshift-labs-ink-studio">Ink Studio</a> (MIT, by siliconjungle), inspired by <a href="https://x.com/JungleSilicon">@JungleSilicon</a>’s pixel-art splats.</span>
+  </p>
+
+  <footer>
+    <span>© <span id="y">2026</span> Giorno Marino</span>
+    <span><a href="../">giornomarino.github.io</a></span>
+  </footer>
+</div>
+
 <script>
 (function(){
-  var l=null;try{l=localStorage.getItem('lang')}catch(e){}
-  l=l||((navigator.language||'').toLowerCase().indexOf('zh')===0?'zh':'en');
-  document.documentElement.setAttribute('data-lang',l);document.documentElement.lang=l==='zh'?'zh-CN':'en';
+  var root=document.documentElement;
+  function get(k){try{return localStorage.getItem(k)}catch(e){return null}}
+  function set(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+  var lang=get('lang')||((navigator.language||'').toLowerCase().indexOf('zh')===0?'zh':'en');
+  var motionBtn=document.getElementById('motion');
+  function applyLang(l){
+    root.setAttribute('data-lang',l);root.lang=l==='zh'?'zh-CN':'en';
+    document.getElementById('lang').textContent=l==='zh'?'EN':'中文';
+    paintMotion();
+  }
+  function paintMotion(){
+    var on=window.__bgMotion!==false;
+    motionBtn.textContent=(lang==='zh'?(on?'背景动画 开':'背景动画 关'):(on?'Motion on':'Motion off'));
+    motionBtn.setAttribute('aria-pressed',on?'true':'false');
+  }
+  window.__bgMotion=get('labMotion')!=='off'&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.__paintMotion=paintMotion;
+  applyLang(lang);
+  document.getElementById('lang').onclick=function(){lang=lang==='zh'?'en':'zh';set('lang',lang);applyLang(lang)};
+  motionBtn.onclick=function(){window.__bgMotion=!window.__bgMotion;set('labMotion',window.__bgMotion?'on':'off');paintMotion();if(window.__bgMotion&&window.__startBg)window.__startBg()};
+  document.getElementById('y').textContent=new Date().getFullYear();
 })();
 </script>
-<script type="module">
-import { mount } from '../assets/splats/splat.js';
-import { SCENES } from '../assets/splats/scenes.js';
-
-let canvas = document.getElementById('c');
-const box = document.getElementById('scenes');
-const lang = document.documentElement.getAttribute('data-lang');
-let current = null, view = null;
-
-function show(name){
-  if (!SCENES[name]) name = 'shark';
-  if (name === current) return;
-  current = name;
-  if (view) view.dispose();
-  // fresh canvas per scene so each gets a clean WebGL context
-  const fresh = canvas.cloneNode(false);
-  canvas.replaceWith(fresh); canvas = fresh;
-  try {
-    const q = new URLSearchParams(location.search);
-    const cam = q.get('cam') ? q.get('cam').split(',').map(Number) : undefined;
-    view = mount(canvas, name, { zoom: true, pixelHeight: 240, camera: cam, still: q.has('still') });
-  } catch (e) {
-    console.error(e);
-    document.getElementById('err').style.display = 'grid';
-    return;
+<script>
+// Live background: load the Ink Studio runtime after the page is up, build the scene, then fade it in over the poster.
+(function(){
+  var saveData = navigator.connection && navigator.connection.saveData;
+  if (saveData) return;
+  var bg = document.getElementById('bg'), canvas = document.getElementById('bgc');
+  function load(src){ return new Promise(function(ok, no){ var s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=no; document.head.appendChild(s); }); }
+  function boot(){
+    var gl = canvas.getContext('webgl2'); if (!gl) return;
+    load('ink/runtime.js').then(function(){ return load('arcane.js'); }).then(start).catch(function(e){ console.warn('background unavailable', e); });
   }
-  for (const b of box.children) b.setAttribute('aria-pressed', b.dataset.s === name ? 'true' : 'false');
-  history.replaceState(null, '', '#' + name);
-}
-
-for (const [k, def] of Object.entries(SCENES)){
-  const b = document.createElement('button');
-  b.className = 'chip'; b.type = 'button'; b.dataset.s = k;
-  b.textContent = def.title[lang] || def.title.en;
-  b.onclick = () => show(k);
-  box.appendChild(b);
-}
-show(location.hash.slice(1) || new URLSearchParams(location.search).get('s') || 'shark');
+  function start(){
+    var def = window.ARCANE_SCENE({ makeBuilder: makeBuilder, makeSculpt: makeSculpt, KIT: KIT });
+    var world = def.build(def.seed);
+    var renderer = window.createInkRenderer(canvas, { toolkit: { KIT: KIT, PixelLook: PixelLook } });
+    var base = Object.assign({}, world.cam), cam = Object.assign({}, world.cam);
+    var elapsed = 3, last, mx = 0, my = 0, sx = 0, sy = 0, raf = 0, shown = false;
+    function resize(){
+      var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.max(320, Math.floor(innerWidth * dpr));
+      canvas.height = Math.max(200, Math.floor(innerHeight * dpr));
+      // keep the island framed on narrow screens
+      base.dist = world.cam.dist * Math.max(1, Math.min(1.6, 1.25 * innerHeight / innerWidth));
+      if (shown && !window.__bgMotion) draw(0);
+    }
+    addEventListener('resize', resize); resize();
+    addEventListener('pointermove', function(e){ mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; }, { passive: true });
+    function draw(dt){
+      if (world.anim) world.anim.update(dt, elapsed);
+      sx += (mx - sx) * Math.min(1, dt * 2); sy += (my - sy) * Math.min(1, dt * 2);
+      var scroll = Math.min(1, scrollY / Math.max(1, innerHeight));
+      cam.target = base.target;
+      cam.yaw = base.yaw + elapsed * 0.03 + sx * 0.25;
+      cam.pitch = base.pitch + sy * 0.08 + scroll * 0.12;
+      cam.dist = base.dist * (1 + scroll * 0.12);
+      renderer.render(world, { width: canvas.width, height: canvas.height, time: elapsed, camera: cam, damp: false });
+      if (!shown){ shown = true; requestAnimationFrame(function(){ bg.classList.add('live'); }); }
+    }
+    function frame(now){
+      raf = 0;
+      var dt = last === undefined ? 0 : Math.min(0.05, (now - last) / 1000); last = now;
+      elapsed += dt;
+      draw(dt);
+      if (window.__bgMotion && !document.hidden) raf = requestAnimationFrame(frame);
+    }
+    window.__startBg = function(){ if (!raf){ last = undefined; raf = requestAnimationFrame(frame); } };
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden && window.__bgMotion) window.__startBg(); });
+    if (window.__bgMotion) window.__startBg(); else draw(0);
+  }
+  if (document.readyState === 'complete') setTimeout(boot, 200);
+  else addEventListener('load', function(){ setTimeout(boot, 200); });
+})();
 </script>
 </body>
 </html>
